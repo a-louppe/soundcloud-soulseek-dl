@@ -1,0 +1,108 @@
+<div class="h-screen flex bg-surface-base">
+  <!-- Sidebar -->
+  <app-sidebar
+    [navItems]="statusFilters"
+    [activeStatus]="activeFilter()"
+    [statusCounts]="statusCounts()"
+    [totalCount]="totalTracks()"
+    (filterChange)="onFilterChange($event)"
+  />
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col min-w-0">
+    <!-- Header -->
+    <header class="h-header flex items-center gap-4 px-4 bg-glass-bg backdrop-blur-glass border-b border-glass-border">
+      <!-- Search Input -->
+      <div class="flex-1 max-w-xs">
+        <div class="relative">
+          <app-icon name="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-txt-muted" />
+          <input
+            type="text"
+            placeholder="Search tracks..."
+            class="w-full pl-10 pr-3 py-2 text-base
+                   bg-white/[0.04] border border-border-subtle rounded-md
+                   text-txt-primary placeholder:text-txt-muted
+                   focus:outline-none focus:border-border-focus focus:bg-white/[0.06]
+                   transition-colors"
+            [ngModel]="searchText()"
+            (ngModelChange)="onSearchChange($event)"
+          />
+        </div>
+      </div>
+
+      <div class="flex-1"></div>
+
+      <!-- Quality Filter -->
+      <select class="px-3 py-2 text-sm bg-surface-raised border border-border rounded-sm text-txt-primary
+                     focus:outline-none focus:border-border-focus cursor-pointer">
+        <option>Quality: FLAC</option>
+        <option>Quality: 320kbps</option>
+        <option>Quality: Any</option>
+      </select>
+
+      <!-- Actions -->
+      <button
+        class="btn-primary"
+        [disabled]="isSyncing()"
+        (click)="onSyncClick()"
+        appTooltip="Fetch new likes from SoundCloud"
+      >
+        @if (isSyncing()) {
+          <app-spinner [diameter]="14" />
+        } @else {
+          <app-icon name="sync" />
+        }
+        <span>Sync</span>
+      </button>
+
+      <button
+        class="btn-ghost"
+        [disabled]="isLoading()"
+        (click)="onBulkSearchClick()"
+        appTooltip="Search Soulseek for all pending tracks"
+      >
+        <app-icon name="manage_search" />
+        <span>Bulk Search</span>
+      </button>
+    </header>
+
+    <!-- Track Grid -->
+    <div class="flex-1 overflow-y-auto">
+      @if (isLoading()) {
+        <div class="flex flex-col items-center justify-center h-full text-txt-muted">
+          <app-spinner [diameter]="40" />
+          <p class="mt-4 text-sm">Loading tracks...</p>
+        </div>
+      } @else if (tracks().length === 0) {
+        <div class="flex flex-col items-center justify-center h-full text-txt-muted">
+          <app-icon name="library_music" [size]="64" class="opacity-30 mb-4" />
+          <h2 class="text-lg font-normal mb-2">No tracks yet</h2>
+          <p class="text-sm">Click "Sync" to import your SoundCloud likes</p>
+        </div>
+      } @else {
+        <!-- Grid Header -->
+        <div class="grid grid-cols-[40px_1fr_100px_100px_80px_160px] items-center gap-3 px-4 py-2
+                    text-xs font-medium text-txt-muted uppercase tracking-wide
+                    border-b border-border-subtle sticky top-0 bg-surface-base z-10">
+          <div></div>
+          <div>Track</div>
+          <div>Status</div>
+          <div>Source</div>
+          <div>Duration</div>
+          <div>Actions</div>
+        </div>
+
+        <!-- Track Rows -->
+        @for (track of tracks(); track track.id) {
+          <app-track-card
+            [track]="track"
+            [downloadProgress]="downloadProgress().get(track.id)"
+            (searchClicked)="onSearchTrack($event)"
+            (viewResultsClicked)="onViewResults($event)"
+            (downloadYtdlpClicked)="onDownloadYtdlp($event)"
+          />
+        }
+      }
+    </div>
+  </div>
+</div>

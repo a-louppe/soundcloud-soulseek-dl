@@ -1,0 +1,116 @@
+<!-- Compact grid row layout: 40px thumbnail | track info | status | source | duration | actions -->
+<div class="h-row grid grid-rows-[50px] grid-cols-[40px_1fr_100px_100px_80px_160px] items-center gap-3 px-4 overflow-hidden
+            border-b border-border-subtle hover:bg-white/[0.02] transition-colors group">
+  <!-- Thumbnail -->
+  <div class="relative w-thumb h-thumb shrink-0 overflow-hidden rounded-sm">
+    <img
+      [src]="artworkUrl()"
+      [alt]="track().title"
+      class="w-full h-full object-cover bg-surface-raised"
+      (error)="onImageError($event)"
+    />
+    @if (isDownloaded()) {
+      <div class="absolute inset-0 flex items-center justify-center bg-black/60">
+        <app-icon name="check" class="text-status-complete" />
+      </div>
+    }
+  </div>
+
+  <!-- Track Info -->
+  <div class="overflow-hidden min-w-0">
+    <div class="flex items-center gap-2">
+      <span
+        class="text-base font-medium text-txt-primary truncate"
+        [appTooltip]="track().title"
+      >
+        {{ track().title }}
+      </span>
+    </div>
+    <div class="flex items-center gap-2 text-sm text-txt-secondary truncate">
+      <span class="truncate">{{ track().artist }}</span>
+      @if (track().errorMessage) {
+        <span class="text-status-failed flex items-center gap-1">
+          <app-icon name="error" [size]="12" />
+          {{ track().errorMessage }}
+        </span>
+      }
+    </div>
+    <!-- Progress bar inline when downloading -->
+    @if (isDownloading() && downloadProgress()) {
+      <div class="mt-1">
+        <app-progress-bar [progress]="downloadProgress()!" />
+      </div>
+    }
+  </div>
+
+  <!-- Status Badge -->
+  <div>
+    <app-status-badge [status]="track().status" />
+  </div>
+
+  <!-- Source Badge -->
+  <div class="flex gap-1">
+    @if (isDownloaded() || isDownloading()) {
+      <span class="badge bg-badge-soulseek text-surface-base">SLSK</span>
+    } @else if (track().status === TrackStatus.PENDING) {
+      <span class="text-txt-muted text-sm">—</span>
+    } @else {
+      <span class="text-txt-muted text-sm">—</span>
+    }
+  </div>
+
+  <!-- Duration -->
+  <div class="text-sm text-txt-muted tabular-nums">
+    {{ track().duration | duration }}
+  </div>
+
+  <!-- Actions -->
+  <div class="flex items-center gap-1">
+    <!-- Search Soulseek -->
+    @if (canSearch()) {
+      <button
+        class="btn-icon"
+        appTooltip="Search on Soulseek"
+        (click)="onSearchClick()"
+      >
+        <app-icon name="search" />
+      </button>
+    }
+
+    <!-- Searching indicator -->
+    @if (isSearching()) {
+      <button class="btn-icon" disabled appTooltip="Searching...">
+        <app-icon name="sync" class="animate-spin" />
+      </button>
+    }
+
+    <!-- View Results -->
+    @if (hasResults()) {
+      <button
+        class="btn-icon text-status-matched"
+        appTooltip="View Soulseek results"
+        (click)="onViewResultsClick()"
+      >
+        <app-icon name="list" />
+      </button>
+    }
+
+    <!-- yt-dlp Fallback -->
+    @if (canUseYtdlp()) {
+      <button
+        class="btn-icon"
+        appTooltip="Download via yt-dlp"
+        (click)="onDownloadYtdlpClick()"
+      >
+        <app-icon name="cloud_download" />
+      </button>
+    }
+
+    <!-- External Links -->
+    <app-external-links
+      [beatportUrl]="track().beatportSearchUrl"
+      [bandcampUrl]="track().bandcampSearchUrl"
+      [soundcloudUrl]="track().soundcloudUrl"
+    />
+  </div>
+</div>

@@ -1,0 +1,22 @@
+{
+  "name": "soundcloud-soulseek-dl",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/shared",
+    "packages/server",
+    "packages/client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm run -w packages/server dev",
+    "dev:client": "npm run -w packages/client start",
+    "build": "npm run build:shared && npm run build:server && npm run build:client",
+    "build:shared": "npm run -w packages/shared build",
+    "build:server": "npm run -w packages/server build",
+    "build:client": "npm run -w packages/client build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

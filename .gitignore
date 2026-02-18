@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+*.db
+*.db-wal
+*.db-shm
+downloads/
+data/
+.angular/
+.vscode/
+*.tsbuildinfo

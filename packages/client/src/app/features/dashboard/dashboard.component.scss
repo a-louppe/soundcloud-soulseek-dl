@@ -1,0 +1,10 @@
+// Snackbar customization
+:host ::ng-deep {
+  .snack-success {
+    --mdc-snackbar-container-color: #2e5a30;
+  }
+
+  .snack-error {
+    --mdc-snackbar-container-color: #5a2e2e;
+  }
+}

@@ -1,0 +1,221 @@
+@use '@angular/material' as mat;
+
+// Deep Sync dark theme - Professional Glassmorphism
+$theme: mat.define-theme(
+  (
+    color: (
+      theme-type: dark,
+      primary: mat.$cyan-palette,
+      tertiary: mat.$cyan-palette,
+    ),
+    density: (
+      scale: -1,
+    ),
+  )
+);
+
+html {
+  @include mat.all-component-themes($theme);
+  color-scheme: dark;
+}
+
+// Tailwind directives
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+// Base layer - Tailwind overrides
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    @apply font-sans bg-surface-base text-txt-primary;
+  }
+
+  // Scrollbar styling
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-base;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-white/20;
+  }
+}
+
+// Component layer - reusable patterns
+@layer components {
+  // Glass surface
+  .glass {
+    @apply bg-glass-bg backdrop-blur-glass border border-glass-border;
+  }
+
+  // Status badge base
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 text-sm font-medium rounded-full;
+  }
+
+  // Ghost button
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1 px-3 py-1;
+    @apply text-sm font-medium rounded-sm;
+    @apply border border-border text-txt-secondary;
+    @apply transition-all duration-150;
+  }
+
+  .btn-ghost:hover {
+    @apply bg-white/5 text-txt-primary;
+  }
+
+  // Primary button
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1 px-3 py-1;
+    @apply text-sm font-medium rounded-sm;
+    @apply bg-white/10 text-txt-primary;
+    @apply transition-all duration-150;
+  }
+
+  .btn-primary:hover {
+    @apply bg-white/20;
+  }
+
+  // Icon button
+  .btn-icon {
+    @apply p-1 text-txt-secondary transition-colors;
+  }
+
+  .btn-icon:hover {
+    @apply text-txt-primary;
+  }
+}
+
+// Angular Material overrides for glass aesthetic
+.mat-mdc-dialog-container {
+  --mdc-dialog-container-color: rgba(26, 26, 30, 0.9) !important;
+  backdrop-filter: blur(20px);
+}
+
+.mat-mdc-dialog-container .mdc-dialog__surface {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 8px !important;
+}
+
+.mat-mdc-snack-bar-container {
+  --mdc-snackbar-container-color: #242428;
+}
+
+.mat-mdc-table {
+  background: transparent !important;
+}
+
+.mat-mdc-header-cell,
+.mat-mdc-cell {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+.mat-mdc-row:hover {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+// Input styling overrides
+.mat-mdc-form-field .mdc-text-field--filled {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-radius: 6px !important;
+}
+
+.mat-mdc-form-field .mdc-text-field--filled:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.mat-mdc-form-field .mdc-floating-label {
+  color: #6b6b70 !important;
+}
+
+.mat-mdc-button,
+.mat-mdc-outlined-button {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.mat-mdc-button:hover,
+.mat-mdc-outlined-button:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.mat-mdc-icon-button {
+  color: #a0a0a6 !important;
+}
+
+.mat-mdc-icon-button:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+// Chip/badge overrides
+.mat-mdc-chip {
+  border-radius: 9999px !important;
+}
+
+// Progress bar
+.mat-mdc-progress-bar {
+  --mdc-linear-progress-active-indicator-height: 4px;
+  --mdc-linear-progress-track-height: 4px;
+}
+
+.mat-mdc-progress-bar .mdc-linear-progress__bar-inner {
+  border-color: #6b8cae !important;
+}
+
+.mat-mdc-progress-bar .mdc-linear-progress__buffer-bar {
+  background-color: #242428 !important;
+}
+
+// Tooltip
+.mat-mdc-tooltip {
+  --mdc-plain-tooltip-container-color: #242428;
+}
+
+// Fix mat-icon vertical alignment in flex containers.
+// By default mat-icon is inline-block — the font glyph sits on the text
+// baseline, which causes visible misalignment inside flex rows/pills.
+// Switching to inline-flex + centering forces the glyph to the exact
+// middle of its em-box regardless of surrounding line-height.
+mat-icon {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+// Larger icon glyphs in buttons and sidebar without touching padding/gaps.
+// We fix the layout box to the original text-lg size (14px) so nothing
+// shifts, then push font-size up so the glyph renders bigger inside it.
+.btn-primary mat-icon,
+.btn-ghost mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+nav button mat-icon,
+aside button mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}

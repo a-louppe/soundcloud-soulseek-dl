@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source:*)",
+      "Bash(npm install:*)",
+      "Bash(bash -l -c \"npm run -w packages/server --silent -- tsx -e ''console.log\\(process.cwd\\(\\)\\)''\")",
+      "Bash(bash:*)",
+      "Bash(curl:*)"
+    ]
+  },
+  "enabledPlugins": {
+    "interface-design@interface-design": true
+  }
+}

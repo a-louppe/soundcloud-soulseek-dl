@@ -1,0 +1,134 @@
+<div class="min-h-screen bg-surface-base">
+  <!-- Header -->
+  <header class="flex items-center gap-4 px-6 py-4 border-b border-border-subtle">
+    <button class="btn-icon" routerLink="/">
+      <app-icon name="arrow_back" [size]="24" />
+    </button>
+    <h1 class="m-0 text-xl font-normal text-txt-primary">Settings & Status</h1>
+    <span class="flex-1"></span>
+    <button class="btn-icon" (click)="onRefreshClick()" [disabled]="isLoading()">
+      <app-icon name="refresh" [size]="24" />
+    </button>
+  </header>
+
+  <div class="p-6">
+    @if (isLoading()) {
+      <div class="flex flex-col items-center justify-center py-16 text-txt-muted">
+        <app-spinner [diameter]="40" />
+        <p class="mt-4 text-sm">Checking system status...</p>
+      </div>
+    } @else if (error()) {
+      <div class="flex flex-col items-center justify-center py-16 text-txt-muted">
+        <app-icon name="error_outline" [size]="56" class="text-status-failed opacity-50 mb-4" />
+        <p class="mb-4 text-sm">{{ error() }}</p>
+        <button class="btn-primary" (click)="onRefreshClick()">Try Again</button>
+      </div>
+    } @else if (health()) {
+      <!-- Status Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- slskd Status -->
+        <div class="glass rounded-lg p-4">
+          <div class="flex items-start gap-3 mb-3">
+            <app-icon
+              [name]="health()!.slskd.connected ? 'check_circle' : 'error'"
+              [size]="28"
+              [class.text-status-complete]="health()!.slskd.connected"
+              [class.text-status-failed]="!health()!.slskd.connected"
+            />
+            <div>
+              <h3 class="text-base font-medium text-txt-primary m-0">slskd (Soulseek)</h3>
+              <p class="text-sm text-txt-secondary m-0">
+                {{ health()!.slskd.connected ? 'Connected' : 'Disconnected' }}
+              </p>
+            </div>
+          </div>
+          <p class="text-xs font-mono text-txt-muted m-0 break-all">{{ health()!.slskd.url }}</p>
+        </div>
+
+        <!-- SoundCloud Status -->
+        <div class="glass rounded-lg p-4">
+          <div class="flex items-start gap-3 mb-3">
+            <app-icon
+              [name]="health()!.soundcloud.connected ? 'check_circle' : 'error'"
+              [size]="28"
+              [class.text-status-complete]="health()!.soundcloud.connected"
+              [class.text-status-failed]="!health()!.soundcloud.connected"
+            />
+            <div>
+              <h3 class="text-base font-medium text-txt-primary m-0">SoundCloud</h3>
+              <p class="text-sm text-txt-secondary m-0">
+                {{ health()!.soundcloud.connected ? 'Authenticated' : 'Not Connected' }}
+              </p>
+            </div>
+          </div>
+          @if (health()!.soundcloud.userId) {
+            <p class="text-xs font-mono text-txt-muted m-0">User ID: {{ health()!.soundcloud.userId }}</p>
+          } @else {
+            <p class="text-xs text-status-missing m-0">OAuth token may be invalid</p>
+          }
+        </div>
+
+        <!-- yt-dlp Status -->
+        <div class="glass rounded-lg p-4">
+          <div class="flex items-start gap-3 mb-3">
+            <app-icon
+              [name]="health()!.ytdlp.available ? 'check_circle' : 'warning'"
+              [size]="28"
+              [class.text-status-complete]="health()!.ytdlp.available"
+              [class.text-status-missing]="!health()!.ytdlp.available"
+            />
+            <div>
+              <h3 class="text-base font-medium text-txt-primary m-0">yt-dlp</h3>
+              <p class="text-sm text-txt-secondary m-0">
+                {{ health()!.ytdlp.available ? 'Available' : 'Not Found' }}
+              </p>
+            </div>
+          </div>
+          @if (health()!.ytdlp.version) {
+            <p class="text-xs font-mono text-txt-muted m-0">Version: {{ health()!.ytdlp.version }}</p>
+          } @else {
+            <p class="text-xs text-status-missing m-0">Fallback downloads unavailable</p>
+          }
+        </div>
+
+        <!-- Download Directory -->
+        <div class="glass rounded-lg p-4">
+          <div class="flex items-start gap-3 mb-3">
+            <app-icon name="folder" [size]="28" class="text-status-complete" />
+            <div>
+              <h3 class="text-base font-medium text-txt-primary m-0">Download Directory</h3>
+              <p class="text-sm text-txt-secondary m-0">Where tracks are saved</p>
+            </div>
+          </div>
+          <p class="text-xs font-mono text-status-searching m-0 break-all">{{ health()!.downloadDir }}</p>
+        </div>
+      </div>
+
+      <!-- Track Statistics -->
+      <div class="glass rounded-lg p-6">
+        <h2 class="text-lg font-medium text-txt-primary m-0 mb-6">Track Statistics</h2>
+        <div class="flex items-center justify-around">
+          <div class="text-center">
+            <div class="text-3xl font-medium text-txt-primary tabular-nums">{{ health()!.trackStats.total }}</div>
+            <div class="text-xs text-txt-muted uppercase tracking-wide mt-1">Total Tracks</div>
+          </div>
+          <div class="w-px h-12 bg-border-subtle"></div>
+          <div class="text-center">
+            <div class="text-3xl font-medium text-status-complete tabular-nums">{{ health()!.trackStats.downloaded }}</div>
+            <div class="text-xs text-txt-muted uppercase tracking-wide mt-1">Downloaded</div>
+          </div>
+          <div class="w-px h-12 bg-border-subtle"></div>
+          <div class="text-center">
+            <div class="text-3xl font-medium text-status-pending tabular-nums">{{ health()!.trackStats.pending }}</div>
+            <div class="text-xs text-txt-muted uppercase tracking-wide mt-1">Pending</div>
+          </div>
+          <div class="w-px h-12 bg-border-subtle"></div>
+          <div class="text-center">
+            <div class="text-3xl font-medium text-status-failed tabular-nums">{{ health()!.trackStats.failed }}</div>
+            <div class="text-xs text-txt-muted uppercase tracking-wide mt-1">Failed</div>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>

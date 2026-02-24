@@ -6,6 +6,7 @@ dist/
 *.db-shm
 downloads/
 data/
+slskd-data/
 .angular/
 .vscode/
 *.tsbuildinfo

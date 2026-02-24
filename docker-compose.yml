@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  slskd:
+    image: slskd/slskd:latest
+    container_name: slskd
+    restart: unless-stopped
+    env_file:
+      # Reads SLSKD_API_KEY, SLSKD_SLSK_USERNAME, SLSKD_SLSK_PASSWORD from your .env
+      - .env
+    environment:
+      - SLSKD_REMOTE_CONFIGURATION=true
+    ports:
+      # Web UI + REST API (proxied by your app via SLSKD_URL)
+      - "5030:5030"
+      # HTTPS (optional, not needed for local dev)
+      # - "5031:5031"
+      # Soulseek P2P incoming connections
+      - "50300:50300"
+    volumes:
+      # slskd app data: config, logs, its own downloads database
+      - ./slskd-data:/app:rw

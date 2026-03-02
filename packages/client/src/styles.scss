@@ -96,6 +96,17 @@ html {
     @apply bg-white/20;
   }
 
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1 px-3 py-1;
+    @apply text-sm font-medium rounded-sm;
+    @apply bg-red-500/20 text-red-400;
+    @apply transition-all duration-150;
+  }
+
+  .btn-danger:hover {
+    @apply bg-red-500/30 text-red-300;
+  }
+
   // Icon button
   .btn-icon {
     @apply p-1 text-txt-secondary transition-colors;

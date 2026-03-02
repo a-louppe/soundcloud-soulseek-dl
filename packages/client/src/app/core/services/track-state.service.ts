@@ -152,11 +152,16 @@ export class TrackStateService implements OnDestroy {
     this.isSyncing.set(true);
     try {
       await firstValueFrom(this.api.syncTracks());
-      // Results come via SSE sync:complete event
+      // Results come via SSE sync:progress/sync:complete events
     } catch (err) {
       this.isSyncing.set(false);
       throw err;
     }
+  }
+
+  /** Cancel an in-progress sync */
+  async cancelSync(): Promise<void> {
+    await firstValueFrom(this.api.cancelSync());
   }
 
   /** Update filter params and reload */
@@ -354,11 +359,24 @@ export class TrackStateService implements OnDestroy {
       })
     );
 
+    // Sync progress — merge incoming tracks into the map as they arrive
+    this.subscriptions.push(
+      this.sse.syncProgress$.subscribe(({ tracks }) => {
+        this.tracksMap.update((map) => {
+          const newMap = new Map(map);
+          for (const track of tracks) {
+            newMap.set(track.id, track);
+          }
+          return newMap;
+        });
+      })
+    );
+
     // Sync complete
     this.subscriptions.push(
       this.sse.syncComplete$.subscribe(() => {
         this.isSyncing.set(false);
-        // Reload tracks to get new ones
+        // Final reload to ensure pagination/counts are accurate
         this.loadTracks();
       })
     );

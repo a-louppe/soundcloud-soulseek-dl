@@ -118,6 +118,15 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  async onCancelSyncClick(): Promise<void> {
+    try {
+      await this.trackState.cancelSync();
+      this.showSuccess('Sync cancelled');
+    } catch (err) {
+      this.showError('Failed to cancel sync');
+    }
+  }
+
   async onBulkSearchClick(): Promise<void> {
     try {
       await this.trackState.bulkSearch();

@@ -49,6 +49,11 @@ export class ApiService {
     return this.http.post<void>(`${this.baseUrl}/tracks/sync`, {});
   }
 
+  /** Cancel an in-progress SoundCloud sync */
+  cancelSync(): Observable<void> {
+    return this.http.post<void>(`${this.baseUrl}/tracks/sync/cancel`, {});
+  }
+
   /** Update a track's status (e.g. manually mark as downloaded/pending) */
   updateTrackStatus(id: number, status: string): Observable<void> {
     return this.http.patch<void>(`${this.baseUrl}/tracks/${id}/status`, { status });

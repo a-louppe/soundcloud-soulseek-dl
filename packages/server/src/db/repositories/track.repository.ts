@@ -153,9 +153,10 @@ export class TrackRepository {
       duration: number;
       likedAt: string | null;
     }>,
-  ): { newCount: number; updatedCount: number } {
+  ): { newCount: number; updatedCount: number; upsertedTracks: Track[] } {
     let newCount = 0;
     let updatedCount = 0;
+    const upsertedTracks: Track[] = [];
 
     const insert = this.db.prepare(`
       INSERT INTO tracks (soundcloud_id, title, artist, artwork_url, soundcloud_url, duration, liked_at)
@@ -191,12 +192,15 @@ export class TrackRepository {
           } else {
             newCount++;
           }
+          // Re-fetch to get the full row with DB-assigned ID and timestamps
+          const row = this.stmts.getBySoundcloudId.get(t.soundcloudId) as TrackRow;
+          upsertedTracks.push(rowToTrack(row));
         }
       },
     );
 
     upsertAll(tracks);
-    return { newCount, updatedCount };
+    return { newCount, updatedCount, upsertedTracks };
   }
 
   getStatusCounts(): Record<string, number> {

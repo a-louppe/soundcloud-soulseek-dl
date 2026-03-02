@@ -41,19 +41,25 @@
       </select>
 
       <!-- Actions -->
-      <button
-        class="btn-primary"
-        [disabled]="isSyncing()"
-        (click)="onSyncClick()"
-        appTooltip="Fetch new likes from SoundCloud"
-      >
-        @if (isSyncing()) {
-          <app-spinner [diameter]="14" />
-        } @else {
+      @if (isSyncing()) {
+        <button
+          class="btn-danger"
+          (click)="onCancelSyncClick()"
+          appTooltip="Stop syncing from SoundCloud"
+        >
+          <app-icon name="stop" />
+          <span>Stop Sync</span>
+        </button>
+      } @else {
+        <button
+          class="btn-primary"
+          (click)="onSyncClick()"
+          appTooltip="Fetch new likes from SoundCloud"
+        >
           <app-icon name="sync" />
-        }
-        <span>Sync</span>
-      </button>
+          <span>Sync</span>
+        </button>
+      }
 
       <button
         class="btn-ghost"

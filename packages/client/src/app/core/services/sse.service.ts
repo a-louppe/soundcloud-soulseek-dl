@@ -53,6 +53,11 @@ export class SseService implements OnDestroy {
     map((e) => e.data)
   );
 
+  readonly syncProgress$ = this.allEvents$.pipe(
+    filter((e): e is Extract<SSEEvent, { type: 'sync:progress' }> => e.type === 'sync:progress'),
+    map((e) => e.data)
+  );
+
   readonly syncComplete$ = this.allEvents$.pipe(
     filter((e): e is Extract<SSEEvent, { type: 'sync:complete' }> => e.type === 'sync:complete'),
     map((e) => e.data)

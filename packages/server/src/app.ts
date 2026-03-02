@@ -28,6 +28,7 @@ declare module 'fastify' {
     slskd: SlskdService;
     ytdlp: YtdlpService;
     downloadManager: DownloadManager;
+    syncAbortController: AbortController | null;
   }
 }
 
@@ -59,6 +60,8 @@ export async function buildApp(config: AppConfig) {
     'downloadManager',
     new DownloadManager(slskd, ytdlp, trackRepo, searchResultRepo, downloadRepo, config),
   );
+
+  app.decorate('syncAbortController', null);
 
   // Register routes
   await app.register(tracksRoutes, { prefix: '/api/tracks' });

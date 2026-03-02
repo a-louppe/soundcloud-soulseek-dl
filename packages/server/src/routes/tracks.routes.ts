@@ -42,6 +42,13 @@ export const tracksRoutes: FastifyPluginAsync = async (app) => {
 
   // Sync SoundCloud likes
   app.post('/sync', async (request, reply) => {
+    if (app.syncAbortController) {
+      return reply.code(409).send({ error: 'Sync already in progress' });
+    }
+
+    const abortController = new AbortController();
+    app.syncAbortController = abortController;
+
     reply.code(202).send({ message: 'Sync started' });
 
     // Run in background
@@ -49,22 +56,55 @@ export const tracksRoutes: FastifyPluginAsync = async (app) => {
       try {
         let newCount = 0;
         let updatedCount = 0;
+        let pageNum = 0;
 
         for await (const batch of app.soundcloud.fetchAllLikes()) {
+          // Check if sync was cancelled between pages
+          if (abortController.signal.aborted) {
+            app.log.info(`Sync cancelled after ${pageNum} pages`);
+            break;
+          }
+
+          pageNum++;
           const result = app.trackRepo.bulkUpsert(batch);
           newCount += result.newCount;
           updatedCount += result.updatedCount;
+
+          app.log.info(`Sync page ${pageNum}: ${batch.length} tracks (${result.newCount} new, ${result.updatedCount} updated)`);
+
+          // Emit progress per batch so the client can display tracks as they arrive
+          app.downloadManager.emit('event', {
+            type: 'sync:progress',
+            data: {
+              tracks: result.upsertedTracks,
+              newCount: result.newCount,
+              totalSoFar: app.trackRepo.getTotalCount(),
+            },
+          });
         }
 
         const totalCount = app.trackRepo.getTotalCount();
+        app.log.info(`Sync complete: ${newCount} new, ${updatedCount} updated, ${totalCount} total across ${pageNum} pages`);
         app.downloadManager.emit('event', {
           type: 'sync:complete',
           data: { newCount, totalCount },
         });
       } catch (err) {
         app.log.error(err, 'Failed to sync SoundCloud likes');
+      } finally {
+        app.syncAbortController = null;
       }
     });
+  });
+
+  // Cancel an in-progress sync
+  app.post('/sync/cancel', async (request, reply) => {
+    if (!app.syncAbortController) {
+      return reply.code(404).send({ error: 'No sync in progress' });
+    }
+
+    app.syncAbortController.abort();
+    return { success: true };
   });
 
   // Update track status (for manual marking as downloaded/pending/etc.)

@@ -1,4 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { TrackStatus } from '@scsd/shared';
+
+const VALID_STATUSES = new Set(Object.values(TrackStatus));
 
 export const tracksRoutes: FastifyPluginAsync = async (app) => {
   // List all tracks
@@ -62,6 +65,60 @@ export const tracksRoutes: FastifyPluginAsync = async (app) => {
         app.log.error(err, 'Failed to sync SoundCloud likes');
       }
     });
+  });
+
+  // Update track status (for manual marking as downloaded/pending/etc.)
+  app.patch<{ Params: { id: string } }>('/:id/status', async (request, reply) => {
+    const id = parseInt(request.params.id, 10);
+    const body = request.body as { status: string };
+
+    if (!body.status || !VALID_STATUSES.has(body.status as TrackStatus)) {
+      return reply.code(400).send({ error: `Invalid status. Must be one of: ${[...VALID_STATUSES].join(', ')}` });
+    }
+
+    const track = app.trackRepo.getTrack(id);
+    if (!track) {
+      return reply.code(404).send({ error: 'Track not found' });
+    }
+
+    app.trackRepo.updateStatus(id, body.status as TrackStatus);
+
+    // Emit SSE so all connected clients update in real-time
+    app.downloadManager.emit('event', {
+      type: 'track:status-changed',
+      data: { trackId: id, status: body.status },
+    });
+
+    return { success: true };
+  });
+
+  // Bulk update track statuses — accepts an array of IDs and a single status.
+  // better-sqlite3 is synchronous, so looping is effectively atomic within
+  // a single request — no concurrent writes can interleave.
+  app.patch('/bulk-status', async (request, reply) => {
+    const body = request.body as { trackIds: number[]; status: string };
+
+    if (!Array.isArray(body.trackIds) || body.trackIds.length === 0) {
+      return reply.code(400).send({ error: 'trackIds array is required' });
+    }
+
+    if (!body.status || !VALID_STATUSES.has(body.status as TrackStatus)) {
+      return reply.code(400).send({ error: `Invalid status. Must be one of: ${[...VALID_STATUSES].join(', ')}` });
+    }
+
+    for (const id of body.trackIds) {
+      app.trackRepo.updateStatus(id, body.status as TrackStatus);
+    }
+
+    // Emit SSE for each track so all connected clients update in real-time
+    for (const id of body.trackIds) {
+      app.downloadManager.emit('event', {
+        type: 'track:status-changed',
+        data: { trackId: id, status: body.status },
+      });
+    }
+
+    return { success: true, updatedCount: body.trackIds.length };
   });
 
   // Delete track

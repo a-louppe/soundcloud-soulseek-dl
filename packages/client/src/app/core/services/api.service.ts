@@ -12,6 +12,7 @@ import type {
   ActiveDownloadsResponse,
   SoulseekDownloadRequest,
   YtdlpDownloadRequest,
+  BulkUpdateStatusRequest,
 } from '@scsd/shared';
 
 /**
@@ -46,6 +47,16 @@ export class ApiService {
   /** Sync SoundCloud likes - triggers background sync, returns immediately (202) */
   syncTracks(): Observable<void> {
     return this.http.post<void>(`${this.baseUrl}/tracks/sync`, {});
+  }
+
+  /** Update a track's status (e.g. manually mark as downloaded/pending) */
+  updateTrackStatus(id: number, status: string): Observable<void> {
+    return this.http.patch<void>(`${this.baseUrl}/tracks/${id}/status`, { status });
+  }
+
+  /** Bulk update status for multiple tracks in a single request */
+  bulkUpdateStatus(request: BulkUpdateStatusRequest): Observable<void> {
+    return this.http.patch<void>(`${this.baseUrl}/tracks/bulk-status`, request);
   }
 
   /** Delete a track from the database */

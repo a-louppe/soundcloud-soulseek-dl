@@ -20,3 +20,8 @@ export interface YtdlpDownloadRequest {
   trackId: number;
   sourceUrl?: string;
 }
+
+export interface BulkUpdateStatusRequest {
+  trackIds: number[];
+  status: string;
+}

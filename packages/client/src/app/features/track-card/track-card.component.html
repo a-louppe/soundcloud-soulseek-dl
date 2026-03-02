@@ -1,6 +1,16 @@
 <!-- Compact grid row layout: 40px thumbnail | track info | status | source | duration | actions -->
-<div class="h-row grid grid-rows-[50px] grid-cols-[40px_1fr_100px_100px_80px_160px] items-center gap-3 px-4 overflow-hidden
+<div class="h-row grid grid-rows-[50px] grid-cols-[32px_40px_1fr_100px_100px_80px_160px] items-center gap-3 px-4 overflow-hidden
             border-b border-border-subtle hover:bg-white/[0.02] transition-colors group">
+  <!-- Checkbox -->
+  <div class="flex items-center justify-center">
+    <input
+      type="checkbox"
+      class="accent-primary cursor-pointer"
+      [checked]="selected()"
+      (change)="onSelectionToggle()"
+    />
+  </div>
+
   <!-- Thumbnail -->
   <div class="relative w-thumb h-thumb shrink-0 overflow-hidden rounded-sm">
     <img

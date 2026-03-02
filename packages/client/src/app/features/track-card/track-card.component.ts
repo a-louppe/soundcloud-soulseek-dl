@@ -35,12 +35,14 @@ export class TrackCardComponent {
 
   // ========== Inputs ==========
   track = input.required<Track>();
+  selected = input(false);
   downloadProgress = input<DownloadProgress | undefined>();
 
   // ========== Outputs ==========
   searchClicked = output<number>();
   viewResultsClicked = output<number>();
   downloadYtdlpClicked = output<number>();
+  selectionToggled = output<number>();
 
   // ========== Computed ==========
 
@@ -99,6 +101,10 @@ export class TrackCardComponent {
 
   onDownloadYtdlpClick(): void {
     this.downloadYtdlpClicked.emit(this.track().id);
+  }
+
+  onSelectionToggle(): void {
+    this.selectionToggled.emit(this.track().id);
   }
 
   onImageError(event: Event): void {

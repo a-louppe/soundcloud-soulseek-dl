@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { SpinnerComponent } from '../../shared/components';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -63,6 +63,27 @@ export class DashboardComponent implements OnInit {
   // Local state
   searchText = signal('');
   activeFilter = signal<TrackStatus | null>(null);
+
+  // Selection state — tracks selected via checkboxes for bulk actions
+  readonly selectedTrackIds = signal(new Set<number>());
+
+  /** Whether every visible track is currently selected */
+  readonly isAllSelected = computed(() => {
+    const visible = this.tracks();
+    const selected = this.selectedTrackIds();
+    return visible.length > 0 && visible.every(t => selected.has(t.id));
+  });
+
+  /** Count of currently selected tracks */
+  readonly selectedCount = computed(() => this.selectedTrackIds().size);
+
+  /** Whether some (but not all) visible tracks are selected — drives indeterminate state */
+  readonly isSomeSelected = computed(() => {
+    const visible = this.tracks();
+    const selected = this.selectedTrackIds();
+    const count = visible.filter(t => selected.has(t.id)).length;
+    return count > 0 && count < visible.length;
+  });
 
   // Status filter options for sidebar navigation
   readonly statusFilters: NavItem[] = [
@@ -151,6 +172,84 @@ export class DashboardComponent implements OnInit {
       this.showSuccess('yt-dlp download started');
     } catch (err) {
       this.showError('Failed to start yt-dlp download');
+    }
+  }
+
+  onToggleTrackSelection(trackId: number): void {
+    const next = new Set(this.selectedTrackIds());
+    if (next.has(trackId)) {
+      next.delete(trackId);
+    } else {
+      next.add(trackId);
+    }
+    this.selectedTrackIds.set(next);
+  }
+
+  onToggleSelectAll(): void {
+    const visible = this.tracks();
+    if (this.isAllSelected()) {
+      // Deselect all visible
+      const next = new Set(this.selectedTrackIds());
+      for (const t of visible) next.delete(t.id);
+      this.selectedTrackIds.set(next);
+    } else {
+      // Select all visible
+      const next = new Set(this.selectedTrackIds());
+      for (const t of visible) next.add(t.id);
+      this.selectedTrackIds.set(next);
+    }
+  }
+
+  // ========== Bulk Actions ==========
+
+  /** Helper to get selected IDs as an array */
+  private getSelectedIds(): number[] {
+    return Array.from(this.selectedTrackIds());
+  }
+
+  async onBulkDownloadSoulseek(): Promise<void> {
+    const ids = this.getSelectedIds();
+    if (ids.length === 0) return;
+    try {
+      await this.trackState.bulkSearchTracks(ids);
+      this.showSuccess(`Searching Soulseek for ${ids.length} tracks...`);
+    } catch (err) {
+      this.showError('Failed to start bulk Soulseek search');
+    }
+  }
+
+  async onBulkDownloadYtdlp(): Promise<void> {
+    const ids = this.getSelectedIds();
+    if (ids.length === 0) return;
+    try {
+      await this.trackState.bulkDownloadYtdlp(ids);
+      this.showSuccess(`yt-dlp download started for ${ids.length} tracks`);
+    } catch (err) {
+      this.showError(err instanceof Error ? err.message : 'Failed to start yt-dlp downloads');
+    }
+  }
+
+  async onBulkMarkDownloaded(): Promise<void> {
+    const ids = this.getSelectedIds();
+    if (ids.length === 0) return;
+    try {
+      await this.trackState.bulkUpdateStatus(ids, TrackStatus.DOWNLOADED);
+      this.selectedTrackIds.set(new Set());
+      this.showSuccess(`Marked ${ids.length} tracks as downloaded`);
+    } catch (err) {
+      this.showError('Failed to mark tracks as downloaded');
+    }
+  }
+
+  async onBulkMarkNotDownloaded(): Promise<void> {
+    const ids = this.getSelectedIds();
+    if (ids.length === 0) return;
+    try {
+      await this.trackState.bulkUpdateStatus(ids, TrackStatus.PENDING);
+      this.selectedTrackIds.set(new Set());
+      this.showSuccess(`Marked ${ids.length} tracks as not downloaded`);
+    } catch (err) {
+      this.showError('Failed to mark tracks as not downloaded');
     }
   }
 

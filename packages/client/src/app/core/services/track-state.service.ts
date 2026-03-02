@@ -1,5 +1,5 @@
 import { Injectable, inject, signal, computed, OnDestroy, effect } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { TrackStatus, type Track, type DownloadProgress, type ListTracksParams } from '@scsd/shared';
 import { ApiService } from './api.service';
 import { SseService } from './sse.service';
@@ -129,7 +129,7 @@ export class TrackStateService implements OnDestroy {
     this.isLoading.set(true);
     try {
       const params = this.filterParams();
-      const response = await this.api.getTracks(params).toPromise();
+      const response = await firstValueFrom(this.api.getTracks(params));
       if (response) {
         const newMap = new Map<number, Track>();
         for (const track of response.data) {
@@ -151,7 +151,7 @@ export class TrackStateService implements OnDestroy {
   async syncFromSoundCloud(): Promise<void> {
     this.isSyncing.set(true);
     try {
-      await this.api.syncTracks().toPromise();
+      await firstValueFrom(this.api.syncTracks());
       // Results come via SSE sync:complete event
     } catch (err) {
       this.isSyncing.set(false);
@@ -166,25 +166,115 @@ export class TrackStateService implements OnDestroy {
 
   /** Search Soulseek for a track */
   async searchTrack(trackId: number): Promise<void> {
-    this.updateTrackStatus(trackId, TrackStatus.SEARCHING);
-    await this.api.searchTrack(trackId).toPromise();
+    const prev = this.getTrack(trackId)?.status;
+    this.updateTrackInMap(trackId, { status: TrackStatus.SEARCHING });
+    try {
+      await firstValueFrom(this.api.searchTrack(trackId));
+    } catch (err) {
+      if (prev) this.updateTrackInMap(trackId, { status: prev });
+      throw err;
+    }
   }
 
   /** Bulk search all pending/not_found tracks */
   async bulkSearch(): Promise<void> {
-    await this.api.bulkSearch().toPromise();
+    await firstValueFrom(this.api.bulkSearch());
   }
 
   /** Download via Soulseek */
   async downloadSoulseek(trackId: number, resultId: number): Promise<void> {
-    this.updateTrackStatus(trackId, TrackStatus.DOWNLOADING);
-    await this.api.downloadSoulseek({ trackId, resultId }).toPromise();
+    const prev = this.getTrack(trackId)?.status;
+    this.updateTrackInMap(trackId, { status: TrackStatus.DOWNLOADING });
+    try {
+      await firstValueFrom(this.api.downloadSoulseek({ trackId, resultId }));
+    } catch (err) {
+      if (prev) this.updateTrackInMap(trackId, { status: prev });
+      throw err;
+    }
   }
 
   /** Download via yt-dlp */
   async downloadYtdlp(trackId: number): Promise<void> {
-    this.updateTrackStatus(trackId, TrackStatus.DOWNLOADING);
-    await this.api.downloadYtdlp({ trackId }).toPromise();
+    const prev = this.getTrack(trackId)?.status;
+    this.updateTrackInMap(trackId, { status: TrackStatus.DOWNLOADING });
+    try {
+      await firstValueFrom(this.api.downloadYtdlp({ trackId }));
+    } catch (err) {
+      if (prev) this.updateTrackInMap(trackId, { status: prev });
+      throw err;
+    }
+  }
+
+  /** Update a track's status manually (e.g. mark as downloaded) */
+  async updateTrackStatus(trackId: number, status: TrackStatus): Promise<void> {
+    await firstValueFrom(this.api.updateTrackStatus(trackId, status));
+    this.updateTrackInMap(trackId, { status });
+  }
+
+  /** Bulk update status — single request to the server instead of N individual ones */
+  async bulkUpdateStatus(trackIds: number[], status: TrackStatus): Promise<void> {
+    // Snapshot previous statuses so we can rollback on failure
+    const prevStatuses = new Map(
+      trackIds.map(id => [id, this.getTrack(id)?.status]).filter(([, s]) => s != null) as [number, TrackStatus][],
+    );
+    // Optimistic UI update — flip all statuses immediately so the user sees instant feedback
+    for (const id of trackIds) {
+      this.updateTrackInMap(id, { status });
+    }
+    try {
+      await firstValueFrom(this.api.bulkUpdateStatus({ trackIds, status }));
+    } catch (err) {
+      for (const [id, prev] of prevStatuses) {
+        this.updateTrackInMap(id, { status: prev });
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Bulk download via yt-dlp — fires all requests in parallel.
+   * Uses Promise.allSettled so one failure doesn't cancel the rest.
+   * Failed tracks get reverted to their previous status.
+   */
+  async bulkDownloadYtdlp(trackIds: number[]): Promise<void> {
+    const prevStatuses = new Map(
+      trackIds.map(id => [id, this.getTrack(id)?.status]).filter(([, s]) => s != null) as [number, TrackStatus][],
+    );
+    for (const id of trackIds) {
+      this.updateTrackInMap(id, { status: TrackStatus.DOWNLOADING });
+    }
+    const results = await Promise.allSettled(
+      trackIds.map(id => firstValueFrom(this.api.downloadYtdlp({ trackId: id }))),
+    );
+    // Revert failed tracks to their previous status
+    results.forEach((result, i) => {
+      if (result.status === 'rejected') {
+        const prev = prevStatuses.get(trackIds[i]);
+        if (prev) this.updateTrackInMap(trackIds[i], { status: prev });
+      }
+    });
+    const failedCount = results.filter(r => r.status === 'rejected').length;
+    if (failedCount > 0) {
+      throw new Error(`${failedCount} of ${trackIds.length} downloads failed to start`);
+    }
+  }
+
+  /** Bulk search on Soulseek — single request, the server handles concurrency */
+  async bulkSearchTracks(trackIds: number[]): Promise<void> {
+    const prevStatuses = new Map(
+      trackIds.map(id => [id, this.getTrack(id)?.status]).filter(([, s]) => s != null) as [number, TrackStatus][],
+    );
+    for (const id of trackIds) {
+      this.updateTrackInMap(id, { status: TrackStatus.SEARCHING });
+    }
+    try {
+      await firstValueFrom(this.api.bulkSearch(trackIds));
+    } catch (err) {
+      for (const [id, prev] of prevStatuses) {
+        this.updateTrackInMap(id, { status: prev });
+      }
+      throw err;
+    }
   }
 
   /** Get a single track by ID */
@@ -203,7 +293,7 @@ export class TrackStateService implements OnDestroy {
     // Track status changes
     this.subscriptions.push(
       this.sse.trackStatusChanged$.subscribe(({ trackId, status }) => {
-        this.updateTrackStatus(trackId, status as TrackStatus);
+        this.updateTrackInMap(trackId, { status: status as TrackStatus });
       })
     );
 
@@ -259,7 +349,7 @@ export class TrackStateService implements OnDestroy {
       this.sse.searchProgress$.subscribe(({ trackId, resultsCount, isComplete }) => {
         if (isComplete) {
           const newStatus = resultsCount > 0 ? TrackStatus.FOUND_ON_SOULSEEK : TrackStatus.NOT_FOUND;
-          this.updateTrackStatus(trackId, newStatus);
+          this.updateTrackInMap(trackId, { status: newStatus });
         }
       })
     );
@@ -272,10 +362,6 @@ export class TrackStateService implements OnDestroy {
         this.loadTracks();
       })
     );
-  }
-
-  private updateTrackStatus(trackId: number, status: TrackStatus): void {
-    this.updateTrackInMap(trackId, { status });
   }
 
   private updateTrackInMap(trackId: number, updates: Partial<Track>): void {

@@ -66,6 +66,47 @@
       </button>
     </header>
 
+    <!-- Bulk Action Bar — slides in when tracks are selected -->
+    @if (selectedCount() > 0) {
+      <div class="flex items-center gap-3 px-4 py-2 bg-surface-raised border-b border-border-subtle">
+        <span class="text-sm text-txt-secondary">{{ selectedCount() }} selected</span>
+        <div class="flex items-center gap-2">
+          <button
+            class="btn-ghost text-sm"
+            appTooltip="Search selected tracks on Soulseek"
+            (click)="onBulkDownloadSoulseek()"
+          >
+            <app-icon name="search" />
+            <span>Search Soulseek</span>
+          </button>
+          <button
+            class="btn-ghost text-sm"
+            appTooltip="Download selected tracks via yt-dlp"
+            (click)="onBulkDownloadYtdlp()"
+          >
+            <app-icon name="cloud_download" />
+            <span>Download yt-dlp</span>
+          </button>
+          <button
+            class="btn-ghost text-sm"
+            appTooltip="Mark selected tracks as downloaded"
+            (click)="onBulkMarkDownloaded()"
+          >
+            <app-icon name="download_done" />
+            <span>Mark Downloaded</span>
+          </button>
+          <button
+            class="btn-ghost text-sm"
+            appTooltip="Reset selected tracks to pending"
+            (click)="onBulkMarkNotDownloaded()"
+          >
+            <app-icon name="undo" />
+            <span>Mark Not Downloaded</span>
+          </button>
+        </div>
+      </div>
+    }
+
     <!-- Track Grid -->
     <div class="flex-1 overflow-y-auto">
       @if (isLoading()) {
@@ -81,9 +122,18 @@
         </div>
       } @else {
         <!-- Grid Header -->
-        <div class="grid grid-cols-[40px_1fr_100px_100px_80px_160px] items-center gap-3 px-4 py-2
+        <div class="grid grid-cols-[32px_40px_1fr_100px_100px_80px_160px] items-center gap-3 px-4 py-2
                     text-xs font-medium text-txt-muted uppercase tracking-wide
                     border-b border-border-subtle sticky top-0 bg-surface-base z-10">
+          <div class="flex items-center justify-center">
+            <input
+              type="checkbox"
+              class="accent-primary cursor-pointer"
+              [checked]="isAllSelected()"
+              [indeterminate]="isSomeSelected()"
+              (change)="onToggleSelectAll()"
+            />
+          </div>
           <div></div>
           <div>Track</div>
           <div>Status</div>
@@ -96,10 +146,12 @@
         @for (track of tracks(); track track.id) {
           <app-track-card
             [track]="track"
+            [selected]="selectedTrackIds().has(track.id)"
             [downloadProgress]="downloadProgress().get(track.id)"
             (searchClicked)="onSearchTrack($event)"
             (viewResultsClicked)="onViewResults($event)"
             (downloadYtdlpClicked)="onDownloadYtdlp($event)"
+            (selectionToggled)="onToggleTrackSelection($event)"
           />
         }
       }

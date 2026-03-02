@@ -7,6 +7,8 @@ interface TrackRow {
   soundcloud_id: number;
   title: string;
   artist: string;
+  original_artist: string | null;
+  label: string | null;
   artwork_url: string | null;
   soundcloud_url: string;
   duration: number;
@@ -25,6 +27,8 @@ function rowToTrack(row: TrackRow): Track {
     soundcloudId: row.soundcloud_id,
     title: row.title,
     artist: row.artist,
+    originalArtist: row.original_artist,
+    label: row.label,
     artworkUrl: row.artwork_url,
     soundcloudUrl: row.soundcloud_url,
     duration: row.duration,
@@ -148,6 +152,8 @@ export class TrackRepository {
       soundcloudId: number;
       title: string;
       artist: string;
+      originalArtist: string;
+      label: string | null;
       artworkUrl: string | null;
       soundcloudUrl: string;
       duration: number;
@@ -159,11 +165,13 @@ export class TrackRepository {
     const upsertedTracks: Track[] = [];
 
     const insert = this.db.prepare(`
-      INSERT INTO tracks (soundcloud_id, title, artist, artwork_url, soundcloud_url, duration, liked_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO tracks (soundcloud_id, title, artist, original_artist, label, artwork_url, soundcloud_url, duration, liked_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(soundcloud_id) DO UPDATE SET
         title = excluded.title,
         artist = excluded.artist,
+        original_artist = excluded.original_artist,
+        label = excluded.label,
         artwork_url = excluded.artwork_url,
         duration = excluded.duration,
         liked_at = excluded.liked_at,
@@ -182,6 +190,8 @@ export class TrackRepository {
             t.soundcloudId,
             t.title,
             t.artist,
+            t.originalArtist,
+            t.label,
             t.artworkUrl,
             t.soundcloudUrl,
             t.duration,

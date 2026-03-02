@@ -94,7 +94,12 @@ export class DownloadManager extends EventEmitter {
     this.emitEvent('track:status-changed', { trackId, status: TrackStatus.SEARCHING });
 
     try {
-      const query = buildSearchQuery(track.artist, track.title);
+      const query = buildSearchQuery({
+        artist: track.artist,
+        originalArtist: track.originalArtist || track.artist,
+        title: track.title,
+        label: track.label,
+      });
       const searchId = await this.slskd.search(query);
 
       // Poll for completion

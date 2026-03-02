@@ -8,6 +8,13 @@ interface SoundCloudTrack {
   permalink_url: string;
   duration: number;
   created_at: string;
+  publisher_metadata?: {
+    artist?: string;
+    isrc?: string;
+    contains_music?: boolean;
+    explicit?: boolean;
+  } | null;
+  label_name?: string | null;
 }
 
 interface SoundCloudLikesResponse {
@@ -19,6 +26,8 @@ export interface ParsedTrack {
   soundcloudId: number;
   title: string;
   artist: string;
+  originalArtist: string;
+  label: string | null;
   artworkUrl: string | null;
   soundcloudUrl: string;
   duration: number;
@@ -80,10 +89,13 @@ export class SoundCloudService {
       for (const item of response.collection) {
         if (!item.track) continue; // Skip deleted/unavailable tracks
         const t = item.track;
+        const publisherArtist = t.publisher_metadata?.artist?.trim();
         tracks.push({
           soundcloudId: t.id,
           title: t.title,
-          artist: t.user.username,
+          artist: publisherArtist || t.user.username,
+          originalArtist: t.user.username,
+          label: t.label_name?.trim() || null,
           artworkUrl: t.artwork_url
             ? t.artwork_url.replace('-large', '-t500x500')
             : null,

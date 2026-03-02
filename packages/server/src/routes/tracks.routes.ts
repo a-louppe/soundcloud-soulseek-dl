@@ -27,6 +27,11 @@ export const tracksRoutes: FastifyPluginAsync = async (app) => {
     return result;
   });
 
+  // Status counts for sidebar — returns { pending: 5, downloaded: 12, ... }
+  app.get('/counts', async () => {
+    return app.trackRepo.getStatusCounts();
+  });
+
   // Get single track with results
   app.get<{ Params: { id: string } }>('/:id', async (request, reply) => {
     const id = parseInt(request.params.id, 10);

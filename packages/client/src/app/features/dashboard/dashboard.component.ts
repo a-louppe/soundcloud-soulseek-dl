@@ -2,6 +2,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { SpinnerComponent } from '../../shared/components';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatPaginatorModule, type PageEvent } from '@angular/material/paginator';
 import { FormsModule } from '@angular/forms';
 import { TooltipDirective } from '../../shared/directives';
 import { TrackStatus, type SoulseekSearchResult } from '@scsd/shared';
@@ -33,6 +34,7 @@ import { IconComponent } from '../../shared/components/icon.component';
   imports: [
     MatSnackBarModule,
     MatDialogModule,
+    MatPaginatorModule,
     FormsModule,
     TrackCardComponent,
     SidebarComponent,
@@ -59,6 +61,7 @@ export class DashboardComponent implements OnInit {
   readonly isSyncing = this.trackState.isSyncing;
   readonly downloadProgress = this.trackState.downloadProgress;
   readonly filterParams = this.trackState.filterParams;
+  readonly pagination = this.trackState.pagination;
 
   // Local state
   searchText = signal('');
@@ -99,6 +102,7 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadTracks();
+    this.trackState.loadCounts();
   }
 
   async loadTracks(): Promise<void> {
@@ -134,6 +138,10 @@ export class DashboardComponent implements OnInit {
     } catch (err) {
       this.showError('Failed to start bulk search');
     }
+  }
+
+  onPageChange(event: PageEvent): void {
+    this.trackState.setPage(event.pageIndex + 1, event.pageSize);
   }
 
   onFilterChange(status: TrackStatus | null): void {

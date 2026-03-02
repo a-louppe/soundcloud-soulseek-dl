@@ -64,6 +64,11 @@ export class ApiService {
     return this.http.patch<void>(`${this.baseUrl}/tracks/bulk-status`, request);
   }
 
+  /** Get status counts from the database (for sidebar) */
+  getStatusCounts(): Observable<Record<string, number>> {
+    return this.http.get<Record<string, number>>(`${this.baseUrl}/tracks/counts`);
+  }
+
   /** Delete a track from the database */
   deleteTrack(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/tracks/${id}`);

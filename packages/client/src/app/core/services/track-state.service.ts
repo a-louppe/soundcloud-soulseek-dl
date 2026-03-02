@@ -1,4 +1,4 @@
-import { Injectable, inject, signal, computed, OnDestroy, effect } from '@angular/core';
+import { Injectable, inject, signal, computed, OnDestroy } from '@angular/core';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { TrackStatus, type Track, type DownloadProgress, type ListTracksParams } from '@scsd/shared';
 import { ApiService } from './api.service';
@@ -12,9 +12,9 @@ import { SseService } from './sse.service';
  * RxJS-based state management for UI state.
  *
  * The service:
- * - Maintains a Map of tracks indexed by ID for O(1) lookups
+ * - Fetches paginated tracks from the server (filtering, sorting, pagination all server-side)
+ * - Fetches status counts from a dedicated endpoint so sidebar shows DB-level totals
  * - Subscribes to SSE events to update track states in real-time
- * - Provides computed signals for filtered views and status counts
  * - Tracks download progress separately from track data
  */
 @Injectable({ providedIn: 'root' })
@@ -32,11 +32,12 @@ export class TrackStateService implements OnDestroy {
   readonly filterParams = signal<ListTracksParams>({
     sort: 'liked_at',
     order: 'desc',
-    limit: 100,
+    limit: 50,
+    page: 1,
   });
 
-  /** Pagination state */
-  readonly pagination = signal({ page: 1, total: 0, limit: 100 });
+  /** Pagination state — driven by server response */
+  readonly pagination = signal({ page: 1, total: 0, limit: 50 });
 
   /** Loading states */
   readonly isLoading = signal(false);
@@ -45,76 +46,32 @@ export class TrackStateService implements OnDestroy {
   /** Download progress keyed by track ID */
   readonly downloadProgress = signal<Map<number, DownloadProgress>>(new Map());
 
+  /**
+   * Server-sourced status counts — fetched from GET /api/tracks/counts.
+   * Unlike client-side counting, these reflect the entire database regardless
+   * of which page of tracks is currently loaded.
+   */
+  private readonly serverStatusCounts = signal<Record<string, number>>({});
+
   // ========== Computed Signals ==========
 
-  /** All tracks as an array, sorted by current sort params */
+  /**
+   * All tracks on the current page, in server-provided order.
+   * Filtering, sorting, and pagination are handled server-side,
+   * so we just return the loaded tracks as-is.
+   */
   readonly tracks = computed(() => {
-    const map = this.tracksMap();
-    const params = this.filterParams();
-    let tracks = Array.from(map.values());
-
-    // Apply status filter if set
-    if (params.status) {
-      tracks = tracks.filter((t) => t.status === params.status);
-    }
-
-    // Apply search filter if set
-    if (params.search) {
-      const search = params.search.toLowerCase();
-      tracks = tracks.filter(
-        (t) => t.title.toLowerCase().includes(search) || t.artist.toLowerCase().includes(search)
-      );
-    }
-
-    // Sort
-    const sortKey = params.sort ?? 'liked_at';
-    const order = params.order ?? 'desc';
-    tracks.sort((a, b) => {
-      let cmp = 0;
-      switch (sortKey) {
-        case 'title':
-          cmp = a.title.localeCompare(b.title);
-          break;
-        case 'artist':
-          cmp = a.artist.localeCompare(b.artist);
-          break;
-        case 'status':
-          cmp = a.status.localeCompare(b.status);
-          break;
-        case 'liked_at':
-        default:
-          const aDate = a.likedAt ? new Date(a.likedAt).getTime() : 0;
-          const bDate = b.likedAt ? new Date(b.likedAt).getTime() : 0;
-          cmp = aDate - bDate;
-      }
-      return order === 'desc' ? -cmp : cmp;
-    });
-
-    return tracks;
+    return Array.from(this.tracksMap().values());
   });
 
-  /** Status counts for the summary bar */
-  readonly statusCounts = computed(() => {
-    const map = this.tracksMap();
-    const counts: Record<TrackStatus, number> = {
-      [TrackStatus.PENDING]: 0,
-      [TrackStatus.SEARCHING]: 0,
-      [TrackStatus.FOUND_ON_SOULSEEK]: 0,
-      [TrackStatus.NOT_FOUND]: 0,
-      [TrackStatus.DOWNLOADING]: 0,
-      [TrackStatus.DOWNLOADED]: 0,
-      [TrackStatus.FAILED]: 0,
-    };
+  /** Status counts sourced from the server (full DB) */
+  readonly statusCounts = computed(() => this.serverStatusCounts());
 
-    for (const track of map.values()) {
-      counts[track.status]++;
-    }
-
-    return counts;
+  /** Total track count across all statuses (full DB) */
+  readonly totalTracks = computed(() => {
+    const counts = this.serverStatusCounts();
+    return Object.values(counts).reduce((sum, n) => sum + n, 0);
   });
-
-  /** Total track count */
-  readonly totalTracks = computed(() => this.tracksMap().size);
 
   constructor() {
     // Connect to SSE and subscribe to events
@@ -147,6 +104,16 @@ export class TrackStateService implements OnDestroy {
     }
   }
 
+  /** Fetch status counts from the server — reflects full DB, not just loaded page */
+  async loadCounts(): Promise<void> {
+    try {
+      const counts = await firstValueFrom(this.api.getStatusCounts());
+      this.serverStatusCounts.set(counts);
+    } catch {
+      // Silently ignore — counts are non-critical
+    }
+  }
+
   /** Sync SoundCloud likes */
   async syncFromSoundCloud(): Promise<void> {
     this.isSyncing.set(true);
@@ -164,9 +131,16 @@ export class TrackStateService implements OnDestroy {
     await firstValueFrom(this.api.cancelSync());
   }
 
-  /** Update filter params and reload */
+  /** Update filter params, reset to page 1, and reload */
   setFilters(params: Partial<ListTracksParams>): void {
-    this.filterParams.update((current) => ({ ...current, ...params }));
+    this.filterParams.update((current) => ({ ...current, ...params, page: 1 }));
+    this.loadTracks();
+  }
+
+  /** Called by the paginator when page or pageSize changes */
+  setPage(page: number, pageSize: number): void {
+    this.filterParams.update((current) => ({ ...current, page, limit: pageSize }));
+    this.loadTracks();
   }
 
   /** Search Soulseek for a track */
@@ -295,10 +269,11 @@ export class TrackStateService implements OnDestroy {
   // ========== Private Methods ==========
 
   private setupEventSubscriptions(): void {
-    // Track status changes
+    // Track status changes — update in-memory track + refresh counts
     this.subscriptions.push(
       this.sse.trackStatusChanged$.subscribe(({ trackId, status }) => {
         this.updateTrackInMap(trackId, { status: status as TrackStatus });
+        this.loadCounts();
       })
     );
 
@@ -330,6 +305,7 @@ export class TrackStateService implements OnDestroy {
           newMap.delete(trackId);
           return newMap;
         });
+        this.loadCounts();
       })
     );
 
@@ -346,6 +322,7 @@ export class TrackStateService implements OnDestroy {
           newMap.delete(trackId);
           return newMap;
         });
+        this.loadCounts();
       })
     );
 
@@ -355,6 +332,7 @@ export class TrackStateService implements OnDestroy {
         if (isComplete) {
           const newStatus = resultsCount > 0 ? TrackStatus.FOUND_ON_SOULSEEK : TrackStatus.NOT_FOUND;
           this.updateTrackInMap(trackId, { status: newStatus });
+          this.loadCounts();
         }
       })
     );
@@ -369,6 +347,7 @@ export class TrackStateService implements OnDestroy {
           }
           return newMap;
         });
+        this.loadCounts();
       })
     );
 
@@ -378,6 +357,7 @@ export class TrackStateService implements OnDestroy {
         this.isSyncing.set(false);
         // Final reload to ensure pagination/counts are accurate
         this.loadTracks();
+        this.loadCounts();
       })
     );
   }

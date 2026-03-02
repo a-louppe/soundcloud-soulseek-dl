@@ -28,6 +28,7 @@ function runMigrations(db: Database.Database) {
   const migrationDir = resolve(import.meta.dirname, 'migrations');
   const migrations = [
     { name: '001-initial', file: '001-initial.sql' },
+    { name: '002-add-label-and-original-artist', file: '002-add-label-and-original-artist.sql' },
   ];
 
   const applied = new Set(

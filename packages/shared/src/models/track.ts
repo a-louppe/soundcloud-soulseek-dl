@@ -13,6 +13,8 @@ export interface Track {
   soundcloudId: number;
   title: string;
   artist: string;
+  originalArtist: string | null;
+  label: string | null;
   artworkUrl: string | null;
   soundcloudUrl: string;
   duration: number; // milliseconds

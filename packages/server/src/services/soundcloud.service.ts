@@ -28,14 +28,14 @@ export interface ParsedTrack {
 export class SoundCloudService {
   private token: string;
   private userId: string;
-  private baseUrl = 'https://api.soundcloud.com';
+  private baseUrl = 'https://api-v2.soundcloud.com';
 
   constructor(config: AppConfig) {
     this.token = config.soundcloudOauthToken;
     this.userId = config.soundcloudUserId;
   }
 
-  private async request<T>(url: string): Promise<T> {
+  private async request<T>(url: string, retries = 3): Promise<T> {
     const res = await fetch(url, {
       headers: {
         Authorization: `OAuth ${this.token}`,
@@ -43,8 +43,18 @@ export class SoundCloudService {
       },
     });
 
+    if (res.status === 429 && retries > 0) {
+      // SoundCloud returns Retry-After in seconds when rate-limited.
+      // Fall back to exponential backoff (2s, 4s, 8s) if the header is absent.
+      const retryAfter = res.headers.get('Retry-After');
+      const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : (4 - retries) * 2000;
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      return this.request<T>(url, retries - 1);
+    }
+
     if (!res.ok) {
-      throw new Error(`SoundCloud API error: ${res.status} ${res.statusText}`);
+      const body = await res.text().catch(() => '');
+      throw new Error(`SoundCloud API error: ${res.status} ${res.statusText}${body ? ` — ${body}` : ''}`);
     }
 
     return res.json() as Promise<T>;
@@ -88,6 +98,9 @@ export class SoundCloudService {
       }
 
       url = response.next_href;
+
+      // Brief pause between pages to stay within SoundCloud's rate limits.
+      if (url) await new Promise((resolve) => setTimeout(resolve, 300));
     }
   }
 }

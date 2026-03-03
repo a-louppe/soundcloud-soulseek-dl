@@ -14,7 +14,9 @@
     "build": "npm run build:shared && npm run build:server && npm run build:client",
     "build:shared": "npm run -w packages/shared build",
     "build:server": "npm run -w packages/server build",
-    "build:client": "npm run -w packages/client build"
+    "build:client": "npm run -w packages/client build",
+    "triage:map": "node scripts/triage-map.mjs",
+    "triage:map:print": "node scripts/triage-map.mjs --stdout"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

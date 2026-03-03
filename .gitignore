@@ -11,3 +11,4 @@ slskd-data/
 .vscode/
 *.tsbuildinfo
 .claude/settings.local.json
+.claude/cache/

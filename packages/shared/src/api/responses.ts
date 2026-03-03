@@ -41,4 +41,5 @@ export type SSEEvent =
   | { type: 'download:complete'; data: { trackId: number; filePath: string } }
   | { type: 'download:failed'; data: { trackId: number; error: string } }
   | { type: 'sync:progress'; data: { tracks: Track[]; newCount: number; totalSoFar: number } }
-  | { type: 'sync:complete'; data: { newCount: number; totalCount: number } };
+  | { type: 'sync:complete'; data: { newCount: number; totalCount: number } }
+  | { type: 'track:metadata-updated'; data: { track: Track } };

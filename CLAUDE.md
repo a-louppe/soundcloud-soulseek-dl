@@ -1,88 +1,82 @@
 ## Style
-Use a teaching tone: explain *why* things work, not just *what* to do. Include brief explanations of concepts, trade-offs, and reasoning behind suggestions.
+Use a teaching tone: explain why things work, not just what to do. Keep explanations concise by default.
 
+# Claude Operating Guide - SoundCloud Soulseek DL
 
-# SoundCloud Soulseek DL
+## Mission
+- Deliver safe, minimal, testable changes quickly.
+- Optimize token use by reading only relevant code.
+- Use subagents for focused work instead of one large context.
 
-## What This Project Does
-Web app that fetches a user's SoundCloud likes, searches for them on Soulseek (via slskd REST API), provides yt-dlp fallback downloads, and generates Beatport/Bandcamp search links. An Angular UI displays all tracks with real-time status updates via SSE.
+## Token Optimization Contract
+1. Start with `npm run triage:map`, then use Grep tool for targeted searches before opening files.
+2. Read only files you expect to edit plus direct dependencies.
+3. Never load entire directories or large files unless the task requires it.
+4. Prefer `sed -n 'start,endp'` over full-file reads for large files.
+5. Summarize command output; do not paste long logs unless asked.
+6. Reuse previously gathered context; do not re-read unchanged files.
+7. Keep plans short and execution-focused.
+8. Compact early when context grows.
 
-## Tech Stack
-- **Backend**: Node.js + Fastify 5 (TypeScript)
-- **Frontend**: Angular 19 + Angular Material (dark theme, standalone components)
-- **Database**: SQLite via better-sqlite3 (WAL mode)
-- **Real-time**: Server-Sent Events (SSE)
-- **Monorepo**: npm workspaces (`packages/shared`, `packages/server`, `packages/client`)
+## Subagent Routing
+Use these local agents in `.claude/agents`:
+- `repo-triage` for fast scope mapping and file shortlist.
+- `backend-fastify` for server/service/route changes.
+- `frontend-angular` for Angular UI and state changes.
+- `sqlite-migrations` for schema and repository updates.
+- `regression-reviewer` for final risk and regression pass.
 
-## Project Structure
-```
-packages/
-  shared/     - TypeScript interfaces, enums, DTOs shared between server and client
-  server/     - Fastify backend (services, routes, DB, plugins)
-  client/     - Angular 19 app (Angular Material, signals state management)
-```
+When to skip triage:
+- Single-file changes where the target file is already known.
+- Typo fixes, small config tweaks, or tasks the user has fully scoped.
 
-## Data Model
+Recommended flow for medium/large tasks:
+1. `repo-triage` — produces file shortlist and execution order
+2. One implementation agent (`backend-fastify` or `frontend-angular` or `sqlite-migrations`) — pass the triage summary so it starts with the right scope
+3. `regression-reviewer` — final verification including build check
 
-### TrackStatus enum
+## High-Value Repo Map
+- `packages/shared/src/models/track.ts` - shared core types and `TrackStatus`.
+- `packages/shared/src/api/*` - request/response contracts.
+- `packages/server/src/app.ts` - app wiring, DI, route registration.
+- `packages/server/src/services/download-manager.service.ts` - orchestration, queues, SSE event emission.
+- `packages/server/src/routes/*.ts` - HTTP API surface.
+- `packages/server/src/db/*` - SQLite init, migrations, repositories.
+- `packages/client/src/app/core/services/track-state.service.ts` - client state and SSE handling.
+- `packages/client/src/app/features/*` - UI feature modules.
 
-`pending | searching | found_on_soulseek | not_found | downloading | downloaded | failed`
+## Runtime Facts
+- Monorepo via npm workspaces: `packages/shared`, `packages/server`, `packages/client`.
+- Backend: Fastify + TypeScript.
+- Frontend: Angular standalone components + signals.
+- Database: SQLite (`better-sqlite3`, WAL mode).
+- Realtime: SSE at `/api/events/stream`.
+- Central orchestrator: `DownloadManager` with queue concurrency limits.
 
-### SQLite Tables
+## API Snapshot
+- Tracks: list/detail/counts/sync/cancel sync/status update/bulk status/metadata update/delete.
+- Search: single track search, bulk search, cached results.
+- Downloads: soulseek start, yt-dlp start, active list, cancel, retry.
+- Config: `/api/config/status` health and dependency checks.
 
-- **tracks**: id, soundcloud_id (unique), title, artist, artwork_url, soundcloud_url, duration, status, error_message, download_path, download_source, liked_at, created_at, updated_at
-- **soulseek_results**: id, track_id (FK), slskd_search_id, username, filename, size, bit_rate, sample_rate, bit_depth, file_extension, queue_length, free_upload_slots, upload_speed
-- **active_downloads**: id, track_id (FK), source, slskd_username, slskd_filename, bytes_transferred, total_bytes, state, started_at, completed_at
+## Build and Run
+- `npm run triage:map` - generate `.claude/cache/codebase-map.{md,json}` for fast triage.
+- `npm run dev` - run server + client in development.
+- `npm run dev:server` - backend only.
+- `npm run dev:client` - frontend only.
+- `npm run build` - full workspace build.
+- `npm run build:shared && npm run build:server` - backend-focused validation.
+- `npm run build:shared && npm run build:client` - frontend-focused validation.
 
-## API Routes
+## Change Rules
+- Keep edits surgical; follow existing patterns before introducing new abstractions.
+- Preserve shared API contracts (`packages/shared`) when changing server/client behavior.
+- For background operations, preserve SSE event consistency.
+- Avoid adding dependencies unless there is clear, measurable benefit.
+- Never expose secrets from `.env` in output, logs, or commits.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/tracks` | List tracks (filter by status, sort, paginate) |
-| GET | `/api/tracks/:id` | Single track with Soulseek results |
-| PATCH | `/api/tracks/:id/status` | Update track status manually |
-| PATCH | `/api/tracks/bulk-status` | Bulk update status { trackIds, status } |
-| POST | `/api/tracks/sync` | Fetch SoundCloud likes -> upsert DB (202 + SSE) |
-| POST | `/api/search/:trackId` | Search Soulseek for track (202 + SSE) |
-| POST | `/api/search/bulk` | Bulk search pending/not_found tracks |
-| GET | `/api/search/:trackId/results` | Cached Soulseek results |
-| POST | `/api/downloads/soulseek` | Download via slskd { trackId, resultId } |
-| POST | `/api/downloads/ytdlp` | Download via yt-dlp { trackId, sourceUrl? } |
-| GET | `/api/downloads/active` | Active downloads with progress |
-| POST | `/api/downloads/:id/cancel` | Cancel download |
-| POST | `/api/downloads/:id/retry` | Retry failed download |
-| GET | `/api/events/stream` | SSE endpoint for real-time updates |
-| GET | `/api/config/status` | Health: slskd + SoundCloud connectivity |
-
-## SSE Event Types
-
-- `track:status-changed` - status transitions
-- `search:progress` - results count, completion
-- `download:progress` - bytes, speed, ETA
-- `download:complete` - final file path
-- `download:failed` - error message
-- `sync:complete` - new/total track counts
-
-## Key Commands
-- `npm run dev` - Start both server (tsx watch) and Angular dev server (concurrently)
-- `npm run build` - Build shared -> server -> client for production
-- `npm run dev:server` - Server only (port 3000)
-- `npm run dev:client` - Angular only (port 4200, proxies /api to :3000)
-
-## Configuration
-Never divulge personal informations
-All config via `.env` file (see `.env.example`):
-- `SLSKD_URL` / `SLSKD_API_KEY` - slskd daemon connection
-- `SOUNDCLOUD_OAUTH_TOKEN` / `SOUNDCLOUD_USER_ID` - SoundCloud API auth
-- `DOWNLOAD_DIR` - Where downloaded tracks are saved
-- `DATABASE_PATH` - SQLite database file location
-- `YTDLP_PATH` - Path to yt-dlp binary
-
-## Architecture Notes
-- **Download manager** (`packages/server/src/services/download-manager.service.ts`) is the central orchestrator. It manages concurrency (max 3 searches, 2 downloads) and emits SSE events.
-- **SSE events route** (`packages/server/src/routes/events.routes.ts`) subscribes to download manager's EventEmitter and streams typed events to the Angular client.
-- **Track state** is managed with Angular signals in `TrackStateService`, updated reactively from SSE events.
-- **Search query cleaning** strips noise from SoundCloud titles (Original Mix, feat., Free Download, etc.) for better Soulseek matches.
-- slskd REST API is at `/api/v0/*` with `X-API-Key` header auth.
-- Beatport/Bandcamp integration is search-URL generation only (no API scraping).
-
+## Completion Checklist
+1. Relevant build/test command executed.
+2. No obvious regression in status transitions or SSE events.
+3. Types compile across affected workspaces.
+4. Summary includes changed files, behavior impact, and verification performed.

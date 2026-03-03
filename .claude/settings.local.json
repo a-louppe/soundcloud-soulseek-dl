@@ -1,4 +1,9 @@
 {
+  "env": {
+    "MAX_THINKING_TOKENS": "6000",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "35",
+    "CLAUDE_SUBAGENT_MODEL": "haiku"
+  },
   "permissions": {
     "allow": [
       "Bash(source:*)",
@@ -8,7 +13,9 @@
       "Bash(curl:*)"
     ]
   },
+  "model": "sonnet",
   "enabledPlugins": {
-    "interface-design@interface-design": true
+    "interface-design@interface-design": false,
+    "everything-claude-code@everything-claude-code": false
   }
 }

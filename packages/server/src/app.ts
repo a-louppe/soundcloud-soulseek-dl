@@ -94,6 +94,7 @@ export async function buildApp(config: AppConfig) {
   app.addHook('onClose', () => {
     app.syncAbortController?.abort();
     app.downloadManager.shutdown();
+    db.pragma('wal_checkpoint(TRUNCATE)');
     db.close();
   });
 

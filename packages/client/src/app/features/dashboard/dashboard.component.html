@@ -128,7 +128,7 @@
         </div>
       } @else {
         <!-- Grid Header -->
-        <div class="grid grid-cols-[32px_40px_1fr_100px_100px_80px_160px] items-center gap-3 px-4 py-2
+        <div class="grid grid-cols-[32px_50px_1fr_100px_100px_80px_160px] items-center gap-3 px-4 py-2
                     text-xs font-medium text-txt-muted uppercase tracking-wide
                     border-b border-border-subtle sticky top-0 bg-surface-base z-10">
           <div class="flex items-center justify-center">
@@ -158,6 +158,7 @@
             (viewResultsClicked)="onViewResults($event)"
             (downloadYtdlpClicked)="onDownloadYtdlp($event)"
             (selectionToggled)="onToggleTrackSelection($event)"
+            (metadataChanged)="onMetadataChanged($event)"
           />
         }
 

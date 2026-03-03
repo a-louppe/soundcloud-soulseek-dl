@@ -80,3 +80,6 @@ Recommended flow for medium/large tasks:
 2. No obvious regression in status transitions or SSE events.
 3. Types compile across affected workspaces.
 4. Summary includes changed files, behavior impact, and verification performed.
+
+## Mistakes to avoid
+1. Using document.querySelector instead of ViewChild

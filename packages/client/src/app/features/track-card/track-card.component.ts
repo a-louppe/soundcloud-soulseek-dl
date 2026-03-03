@@ -1,8 +1,9 @@
-import { Component, input, output, computed } from '@angular/core';
+import { Component, input, output, computed, signal, ViewChild, ElementRef } from '@angular/core';
 import { TrackStatus, type Track, type DownloadProgress } from '@scsd/shared';
 import { StatusBadgeComponent, ProgressBarComponent, ExternalLinksComponent, IconComponent } from '../../shared/components';
 import { TooltipDirective } from '../../shared/directives';
 import { DurationPipe } from '../../shared/pipes';
+import { MatTooltip } from "@angular/material/tooltip";
 
 /**
  * TrackCard displays a single track with artwork, info, status, and action buttons.
@@ -25,7 +26,8 @@ import { DurationPipe } from '../../shared/pipes';
     IconComponent,
     TooltipDirective,
     DurationPipe,
-  ],
+    MatTooltip
+],
   templateUrl: './track-card.component.html',
   styleUrl: './track-card.component.scss',
 })
@@ -43,6 +45,13 @@ export class TrackCardComponent {
   viewResultsClicked = output<number>();
   downloadYtdlpClicked = output<number>();
   selectionToggled = output<number>();
+  metadataChanged = output<{ trackId: number; fields: { title?: string; artist?: string; label?: string | null } }>();
+
+  @ViewChild('editInput') private editInput?: ElementRef<HTMLInputElement>;
+
+  // ========== Inline Editing State ==========
+  editingField = signal<'title' | 'artist' | 'label' | null>(null);
+  editValue = signal('');
 
   // ========== Computed ==========
 
@@ -109,5 +118,49 @@ export class TrackCardComponent {
 
   onImageError(event: Event): void {
     (event.target as HTMLImageElement).src = 'assets/placeholder-artwork.svg';
+  }
+
+  // ========== Inline Edit Handlers ==========
+
+  startEdit(field: 'title' | 'artist' | 'label'): void {
+    this.editingField.set(field);
+    this.editValue.set(this.track()[field] ?? '');
+    setTimeout(() => {
+      this.editInput?.nativeElement.focus();
+      this.editInput?.nativeElement.select();
+    });
+  }
+
+  confirmEdit(): void {
+    const field = this.editingField();
+    if (!field) return;
+
+    const newValue = this.editValue().trim();
+    const oldValue = (this.track()[field] ?? '').trim();
+
+    // No change or empty title/artist — just cancel
+    if (newValue === oldValue || (field !== 'label' && newValue === '')) {
+      this.cancelEdit();
+      return;
+    }
+
+    const fields: Record<string, string | null> = {};
+    fields[field] = field === 'label' && newValue === '' ? null : newValue;
+
+    this.metadataChanged.emit({ trackId: this.track().id, fields });
+    this.editingField.set(null);
+  }
+
+  cancelEdit(): void {
+    this.editingField.set(null);
+  }
+
+  onEditKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.confirmEdit();
+    } else if (event.key === 'Escape') {
+      this.cancelEdit();
+    }
   }
 }

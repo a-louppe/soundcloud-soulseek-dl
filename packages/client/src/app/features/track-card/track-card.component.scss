@@ -1,1 +1,10 @@
 // Minimal styles - most styling done via Tailwind classes in template
+
+.inline-edit-input {
+  @apply bg-surface-raised border border-border-subtle rounded px-1 py-0.5
+         text-txt-primary outline-none w-full;
+
+  &:focus {
+    @apply border-border-focus;
+  }
+}

@@ -1,5 +1,5 @@
-<!-- Compact grid row layout: 40px thumbnail | track info | status | source | duration | actions -->
-<div class="h-row grid grid-rows-[50px] grid-cols-[32px_40px_1fr_100px_100px_80px_160px] items-center gap-3 px-4 overflow-hidden
+<!-- Compact grid row layout: 50px thumbnail | track info | status | source | duration | actions -->
+<div class="h-[64px] grid grid-cols-[32px_50px_1fr_100px_100px_80px_160px] items-center gap-3 px-4 overflow-hidden
             border-b border-border-subtle hover:bg-white/[0.02] transition-colors group">
   <!-- Checkbox -->
   <div class="flex items-center justify-center">
@@ -28,20 +28,76 @@
 
   <!-- Track Info -->
   <div class="overflow-hidden min-w-0">
+    <!-- Title: click to edit -->
     <div class="flex items-center gap-2">
-      <span
-        class="text-base font-medium text-txt-primary truncate"
-        [appTooltip]="track().title"
-      >
-        {{ track().title }}
-      </span>
+      @if (editingField() === 'title') {
+        <input
+          #editInput
+          type="text"
+          class="inline-edit-input text-base font-medium"
+          [value]="editValue()"
+          (input)="editValue.set($any($event.target).value)"
+          (blur)="confirmEdit()"
+          (keydown)="onEditKeydown($event)"
+        />
+      } @else {
+        <span
+          class="text-base font-medium text-txt-primary truncate cursor-text hover:text-primary transition-colors"
+          [matTooltip]="track().soundcloudTitle && track().soundcloudTitle !== track().title ? track().soundcloudTitle! : 'Click to edit'"
+          (click)="startEdit('title')"
+        >
+          {{ track().title }}
+        </span>
+      }
     </div>
+    <!-- Artist: click to edit -->
     <div class="flex items-center gap-2 text-sm text-txt-secondary truncate">
-      <span class="truncate">{{ track().artist }}</span>
+      @if (editingField() === 'artist') {
+        <input
+          #editInput
+          type="text"
+          class="inline-edit-input text-sm"
+          [value]="editValue()"
+          (input)="editValue.set($any($event.target).value)"
+          (blur)="confirmEdit()"
+          (keydown)="onEditKeydown($event)"
+        />
+      } @else {
+        <span
+          class="truncate cursor-text hover:text-primary transition-colors"
+          matTooltip="Click to edit"
+          (click)="startEdit('artist')"
+        >
+          {{ track().artist }}
+        </span>
+      }
       @if (track().errorMessage) {
         <span class="text-status-failed flex items-center gap-1">
           <app-icon name="error" [size]="12" />
           {{ track().errorMessage }}
+        </span>
+      }
+    </div>
+    <!-- Label: click to edit -->
+    <div class="text-xs text-txt-muted truncate">
+      @if (editingField() === 'label') {
+        <input
+          #editInput
+          type="text"
+          class="inline-edit-input text-xs"
+          [value]="editValue()"
+          (input)="editValue.set($any($event.target).value)"
+          (blur)="confirmEdit()"
+          (keydown)="onEditKeydown($event)"
+          placeholder="Label"
+        />
+      } @else {
+        <span
+          class="cursor-text hover:text-primary transition-colors"
+          matTooltip="Click to edit"
+          (click)="startEdit('label')"
+        >
+          {{ track().label || 'No label' }}
         </span>
       }
     </div>

@@ -166,6 +166,48 @@ export const tracksRoutes: FastifyPluginAsync = async (app) => {
     return { success: true, updatedCount: body.trackIds.length };
   });
 
+  // Update track metadata (title, artist, label)
+  app.patch<{ Params: { id: string } }>('/:id/metadata', async (request, reply) => {
+    const id = parseInt(request.params.id, 10);
+    const body = request.body as { title?: string; artist?: string; label?: string | null };
+
+    if (body.title === undefined && body.artist === undefined && body.label === undefined) {
+      return reply.code(400).send({ error: 'At least one of title, artist, or label must be provided' });
+    }
+    if (body.title !== undefined && body.title.trim() === '') {
+      return reply.code(400).send({ error: 'Title cannot be empty' });
+    }
+    if (body.artist !== undefined && body.artist.trim() === '') {
+      return reply.code(400).send({ error: 'Artist cannot be empty' });
+    }
+
+    const track = app.trackRepo.getTrack(id);
+    if (!track) {
+      return reply.code(404).send({ error: 'Track not found' });
+    }
+
+    const updatedTrack = app.trackRepo.updateMetadata(id, body);
+    if (!updatedTrack) {
+      return reply.code(500).send({ error: 'Failed to update track' });
+    }
+
+    app.downloadManager.emit('event', {
+      type: 'track:metadata-updated',
+      data: { track: updatedTrack },
+    });
+
+    // Also emit status-changed when title/artist changed (resets to pending)
+    // so sidebar counts update across all connected clients
+    if (body.title !== undefined || body.artist !== undefined) {
+      app.downloadManager.emit('event', {
+        type: 'track:status-changed',
+        data: { trackId: id, status: 'pending' },
+      });
+    }
+
+    return { success: true, track: updatedTrack };
+  });
+
   // Delete track
   app.delete<{ Params: { id: string } }>('/:id', async (request, reply) => {
     const id = parseInt(request.params.id, 10);

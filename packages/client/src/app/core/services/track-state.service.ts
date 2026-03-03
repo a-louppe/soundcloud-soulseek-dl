@@ -1,6 +1,6 @@
 import { Injectable, inject, signal, computed, OnDestroy } from '@angular/core';
 import { firstValueFrom, Subscription } from 'rxjs';
-import { TrackStatus, type Track, type DownloadProgress, type ListTracksParams } from '@scsd/shared';
+import { TrackStatus, type Track, type DownloadProgress, type ListTracksParams, type UpdateTrackMetadataRequest } from '@scsd/shared';
 import { ApiService } from './api.service';
 import { SseService } from './sse.service';
 
@@ -256,6 +256,37 @@ export class TrackStateService implements OnDestroy {
     }
   }
 
+  /** Update track metadata with optimistic UI update */
+  async updateTrackMetadata(trackId: number, fields: UpdateTrackMetadataRequest): Promise<void> {
+    const prev = this.getTrack(trackId);
+    if (!prev) return;
+
+    // Optimistic update
+    const optimistic: Partial<Track> = { ...fields };
+    const titleChanged = fields.title !== undefined && fields.title !== prev.title;
+    const artistChanged = fields.artist !== undefined && fields.artist !== prev.artist;
+    if (titleChanged || artistChanged) {
+      optimistic.status = TrackStatus.PENDING;
+      optimistic.errorMessage = null;
+    }
+    this.updateTrackInMap(trackId, optimistic);
+
+    try {
+      await firstValueFrom(this.api.updateTrackMetadata(trackId, fields));
+      this.loadCounts();
+    } catch (err) {
+      // Rollback on failure
+      this.updateTrackInMap(trackId, {
+        title: prev.title,
+        artist: prev.artist,
+        label: prev.label,
+        status: prev.status,
+        errorMessage: prev.errorMessage,
+      });
+      throw err;
+    }
+  }
+
   /** Get a single track by ID */
   getTrack(id: number): Track | undefined {
     return this.tracksMap().get(id);
@@ -334,6 +365,13 @@ export class TrackStateService implements OnDestroy {
           this.updateTrackInMap(trackId, { status: newStatus });
           this.loadCounts();
         }
+      })
+    );
+
+    // Track metadata updated — replace full track in map (handles multi-tab sync)
+    this.subscriptions.push(
+      this.sse.trackMetadataUpdated$.subscribe(({ track }) => {
+        this.updateTrackInMap(track.id, track);
       })
     );
 

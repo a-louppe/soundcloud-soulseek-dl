@@ -30,6 +30,7 @@ function runMigrations(db: Database.Database) {
     { name: '001-initial', file: '001-initial.sql' },
     { name: '002-add-label-and-original-artist', file: '002-add-label-and-original-artist.sql' },
     { name: '003-add-slskd-search-id', file: '003-add-slskd-search-id.sql' },
+    { name: '004-add-soundcloud-title', file: '004-add-soundcloud-title.sql' },
   ];
 
   const applied = new Set(

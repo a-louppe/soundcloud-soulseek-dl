@@ -13,6 +13,7 @@ import type {
   SoulseekDownloadRequest,
   YtdlpDownloadRequest,
   BulkUpdateStatusRequest,
+  UpdateTrackMetadataRequest,
 } from '@scsd/shared';
 
 /**
@@ -67,6 +68,11 @@ export class ApiService {
   /** Get status counts from the database (for sidebar) */
   getStatusCounts(): Observable<Record<string, number>> {
     return this.http.get<Record<string, number>>(`${this.baseUrl}/tracks/counts`);
+  }
+
+  /** Update track metadata (title, artist, label) */
+  updateTrackMetadata(id: number, fields: UpdateTrackMetadataRequest): Observable<{ success: boolean; track: Track }> {
+    return this.http.patch<{ success: boolean; track: Track }>(`${this.baseUrl}/tracks/${id}/metadata`, fields);
   }
 
   /** Delete a track from the database */

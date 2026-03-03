@@ -25,3 +25,9 @@ export interface BulkUpdateStatusRequest {
   trackIds: number[];
   status: string;
 }
+
+export interface UpdateTrackMetadataRequest {
+  title?: string;
+  artist?: string;
+  label?: string | null;
+}

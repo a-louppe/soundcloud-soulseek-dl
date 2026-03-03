@@ -6,6 +6,7 @@ interface TrackRow {
   id: number;
   soundcloud_id: number;
   title: string;
+  soundcloud_title: string | null;
   artist: string;
   original_artist: string | null;
   label: string | null;
@@ -26,6 +27,7 @@ function rowToTrack(row: TrackRow): Track {
     id: row.id,
     soundcloudId: row.soundcloud_id,
     title: row.title,
+    soundcloudTitle: row.soundcloud_title ?? null,
     artist: row.artist,
     originalArtist: row.original_artist,
     label: row.label,
@@ -143,6 +145,44 @@ export class TrackRepository {
     this.stmts.updateDownload.run(path, source, id);
   }
 
+  updateMetadata(
+    id: number,
+    fields: { title?: string; artist?: string; label?: string | null },
+  ): Track | null {
+    const updates: string[] = [];
+    const params: (string | number | null)[] = [];
+
+    if (fields.title !== undefined) {
+      updates.push('title = ?');
+      params.push(fields.title);
+    }
+    if (fields.artist !== undefined) {
+      updates.push('artist = ?');
+      params.push(fields.artist);
+    }
+    if (fields.label !== undefined) {
+      updates.push('label = ?');
+      params.push(fields.label);
+    }
+
+    if (updates.length === 0) return null;
+
+    // Reset status to pending when title or artist changes so user can re-search
+    if (fields.title !== undefined || fields.artist !== undefined) {
+      updates.push("status = 'pending'");
+      updates.push('error_message = NULL');
+    }
+
+    updates.push("updated_at = datetime('now')");
+    params.push(id);
+
+    this.db
+      .prepare(`UPDATE tracks SET ${updates.join(', ')} WHERE id = ?`)
+      .run(...params);
+
+    return this.getTrack(id);
+  }
+
   deleteTrack(id: number): void {
     this.stmts.deleteById.run(id);
   }
@@ -151,6 +191,7 @@ export class TrackRepository {
     tracks: Array<{
       soundcloudId: number;
       title: string;
+      soundcloudTitle: string;
       artist: string;
       originalArtist: string;
       label: string | null;
@@ -165,8 +206,8 @@ export class TrackRepository {
     const upsertedTracks: Track[] = [];
 
     const insert = this.db.prepare(`
-      INSERT INTO tracks (soundcloud_id, title, artist, original_artist, label, artwork_url, soundcloud_url, duration, liked_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO tracks (soundcloud_id, title, soundcloud_title, artist, original_artist, label, artwork_url, soundcloud_url, duration, liked_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(soundcloud_id) DO UPDATE SET
         title = excluded.title,
         artist = excluded.artist,
@@ -175,6 +216,7 @@ export class TrackRepository {
         artwork_url = excluded.artwork_url,
         duration = excluded.duration,
         liked_at = excluded.liked_at,
+        soundcloud_title = COALESCE(tracks.soundcloud_title, excluded.soundcloud_title),
         updated_at = datetime('now')
     `);
 
@@ -189,6 +231,7 @@ export class TrackRepository {
           insert.run(
             t.soundcloudId,
             t.title,
+            t.soundcloudTitle,
             t.artist,
             t.originalArtist,
             t.label,

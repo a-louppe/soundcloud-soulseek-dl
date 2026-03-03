@@ -12,6 +12,7 @@ export interface Track {
   id: number;
   soundcloudId: number;
   title: string;
+  soundcloudTitle: string | null;
   artist: string;
   originalArtist: string | null;
   label: string | null;

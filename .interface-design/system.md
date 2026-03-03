@@ -109,7 +109,7 @@
 |-------|-------|-------|
 | `sidebar` | 200px | Left navigation width |
 | `row` | 32px | Compact data row height |
-| `thumb` | 40px | Album thumbnail size |
+| `thumb` | 50px | Album thumbnail size |
 | `header` | 48px | Top header height |
 
 ---
@@ -143,7 +143,7 @@
 
 ### Data Grid Row
 ```html
-<div class="h-row grid grid-cols-[40px_1fr_100px_100px_80px_auto] items-center gap-3 px-4
+<div class="h-row grid grid-cols-[50px_1fr_100px_100px_80px_auto] items-center gap-3 px-4
             border-b border-border-subtle hover:bg-white/[0.02] transition-colors">
 ```
 

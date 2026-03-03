@@ -5,7 +5,13 @@ export interface SearchQueryInput {
   label: string | null;
 }
 
-export function buildSearchQuery(input: SearchQueryInput): string {
+export interface SearchQueryResult {
+  artist: string;
+  title: string;
+  query: string;
+}
+
+export function parseSearchQuery(input: SearchQueryInput): SearchQueryResult {
   const { artist, originalArtist, title, label } = input;
 
   let cleanTitle = title;
@@ -118,5 +124,9 @@ export function buildSearchQuery(input: SearchQueryInput): string {
   cleanTitle = cleanTitle.replace(/\s{2,}/g, ' ').trim();
   searchArtist = searchArtist.replace(/\s{2,}/g, ' ').trim();
 
-  return `${searchArtist} ${cleanTitle}`;
+  return { artist: searchArtist, title: cleanTitle, query: `${searchArtist} ${cleanTitle}` };
+}
+
+export function buildSearchQuery(input: SearchQueryInput): string {
+  return parseSearchQuery(input).query;
 }

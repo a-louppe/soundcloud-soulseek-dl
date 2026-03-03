@@ -59,8 +59,8 @@ module.exports = {
       },
       spacing: {
         'sidebar': '200px',
-        'row': '50px',
-        'thumb': '40px',
+        'row': '64px',
+        'thumb': '50px',
         'header': '48px',
       },
       backdropBlur: {

@@ -63,6 +63,11 @@ export class SseService implements OnDestroy {
     map((e) => e.data)
   );
 
+  readonly trackMetadataUpdated$ = this.allEvents$.pipe(
+    filter((e): e is Extract<SSEEvent, { type: 'track:metadata-updated' }> => e.type === 'track:metadata-updated'),
+    map((e) => e.data)
+  );
+
   /** Connect to SSE endpoint and start receiving events */
   connect(): void {
     if (this.eventSource) {

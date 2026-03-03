@@ -1,4 +1,5 @@
 import type { AppConfig } from '../config.js';
+import { parseSearchQuery } from '../utils/search-query.js';
 
 interface SoundCloudTrack {
   id: number;
@@ -25,6 +26,7 @@ interface SoundCloudLikesResponse {
 export interface ParsedTrack {
   soundcloudId: number;
   title: string;
+  soundcloudTitle: string;
   artist: string;
   originalArtist: string;
   label: string | null;
@@ -90,12 +92,20 @@ export class SoundCloudService {
         if (!item.track) continue; // Skip deleted/unavailable tracks
         const t = item.track;
         const publisherArtist = t.publisher_metadata?.artist?.trim();
-        tracks.push({
-          soundcloudId: t.id,
-          title: t.title,
+        const label = t.label_name?.trim() || null;
+        const { artist: cleanArtist, title: cleanTitle } = parseSearchQuery({
           artist: publisherArtist || t.user.username,
           originalArtist: t.user.username,
-          label: t.label_name?.trim() || null,
+          title: t.title,
+          label,
+        });
+        tracks.push({
+          soundcloudId: t.id,
+          title: cleanTitle,
+          soundcloudTitle: t.title,
+          artist: cleanArtist,
+          originalArtist: t.user.username,
+          label,
           artworkUrl: t.artwork_url
             ? t.artwork_url.replace('-large', '-t500x500')
             : null,

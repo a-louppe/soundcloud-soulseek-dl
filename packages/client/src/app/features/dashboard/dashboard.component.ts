@@ -232,6 +232,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
+  async onMetadataChanged(event: { trackId: number; fields: { title?: string; artist?: string; label?: string | null } }): Promise<void> {
+    try {
+      await this.trackState.updateTrackMetadata(event.trackId, event.fields);
+    } catch (err) {
+      this.showError('Failed to update track metadata');
+    }
+  }
+
   // ========== Bulk Actions ==========
 
   /** Helper to get selected IDs as an array */

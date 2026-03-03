@@ -22,6 +22,7 @@ export class DownloadManager extends EventEmitter {
   private activeDownloads = 0;
   private maxConcurrentSearches = 3;
   private maxConcurrentDownloads = 2;
+  private _shuttingDown = false;
 
   constructor(
     private slskd: SlskdService,
@@ -32,6 +33,13 @@ export class DownloadManager extends EventEmitter {
     private config: AppConfig,
   ) {
     super();
+  }
+
+  shutdown(): void {
+    this._shuttingDown = true;
+    this.searchQueue.length = 0;
+    this.downloadQueue.length = 0;
+    this.removeAllListeners();
   }
 
   private emitEvent(type: string, data: unknown): void {
@@ -107,13 +115,15 @@ export class DownloadManager extends EventEmitter {
       const pollInterval = 2000;
       let elapsed = 0;
 
-      while (elapsed < maxWait) {
+      while (elapsed < maxWait && !this._shuttingDown) {
         await new Promise((r) => setTimeout(r, pollInterval));
         elapsed += pollInterval;
 
         const complete = await this.slskd.isSearchComplete(searchId);
         if (complete) break;
       }
+
+      if (this._shuttingDown) return;
 
       // Get and save results
       const results = await this.slskd.getSearchResults(searchId);
@@ -188,7 +198,7 @@ export class DownloadManager extends EventEmitter {
       const pollInterval = 3000;
       let elapsed = 0;
 
-      while (elapsed < maxWait) {
+      while (elapsed < maxWait && !this._shuttingDown) {
         await new Promise((r) => setTimeout(r, pollInterval));
         elapsed += pollInterval;
 

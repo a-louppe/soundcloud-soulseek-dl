@@ -1,4 +1,6 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, OnDestroy, signal } from '@angular/core';
+import { Subject, Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { SpinnerComponent } from '../../shared/components';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -45,10 +47,14 @@ import { IconComponent } from '../../shared/components/icon.component';
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   private readonly trackState = inject(TrackStateService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
+
+  /** Debounced search — waits 300ms after the user stops typing before hitting the server */
+  private readonly searchSubject = new Subject<string>();
+  private searchSub?: Subscription;
 
   // Expose TrackStatus enum to template
   readonly TrackStatus = TrackStatus;
@@ -103,6 +109,15 @@ export class DashboardComponent implements OnInit {
   ngOnInit(): void {
     this.loadTracks();
     this.trackState.loadCounts();
+
+    // Debounce search input — only hits the server 300ms after the user stops typing.
+    // distinctUntilChanged prevents duplicate requests if the value hasn't actually changed.
+    this.searchSub = this.searchSubject.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+    ).subscribe((text) => {
+      this.trackState.setFilters({ search: text || undefined });
+    });
   }
 
   async loadTracks(): Promise<void> {
@@ -151,7 +166,7 @@ export class DashboardComponent implements OnInit {
 
   onSearchChange(text: string): void {
     this.searchText.set(text);
-    this.trackState.setFilters({ search: text || undefined });
+    this.searchSubject.next(text);
   }
 
   async onSearchTrack(trackId: number): Promise<void> {
@@ -275,6 +290,10 @@ export class DashboardComponent implements OnInit {
       return this.totalTracks();
     }
     return this.statusCounts()[status] ?? 0;
+  }
+
+  ngOnDestroy(): void {
+    this.searchSub?.unsubscribe();
   }
 
   private showSuccess(message: string): void {

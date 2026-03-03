@@ -10,3 +10,4 @@ slskd-data/
 .angular/
 .vscode/
 *.tsbuildinfo
+.claude/settings.local.json

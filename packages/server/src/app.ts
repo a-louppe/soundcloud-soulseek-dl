@@ -92,6 +92,8 @@ export async function buildApp(config: AppConfig) {
 
   // Graceful shutdown
   app.addHook('onClose', () => {
+    app.syncAbortController?.abort();
+    app.downloadManager.shutdown();
     db.close();
   });
 

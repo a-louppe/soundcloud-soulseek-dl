@@ -3,18 +3,22 @@ import type { FastifyPluginAsync } from 'fastify';
 export const eventsRoutes: FastifyPluginAsync = async (app) => {
   // SSE endpoint for real-time updates
   app.get('/stream', async (request, reply) => {
+    // hijack() tells Fastify we're taking over the response — without this,
+    // Fastify may buffer or interfere with the raw SSE stream.
+    reply.hijack();
+
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no', // Disable nginx buffering
+      'X-Accel-Buffering': 'no',
     });
 
     let eventId = 0;
 
     const sendEvent = (type: string, data: unknown) => {
       eventId++;
-      reply.raw.write(`id: ${eventId}\nevent: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+      reply.raw.write(`id: ${eventId}\ndata: ${JSON.stringify({ type, data })}\n\n`);
     };
 
     // Subscribe to download manager events
@@ -23,10 +27,10 @@ export const eventsRoutes: FastifyPluginAsync = async (app) => {
     };
     app.downloadManager.on('event', handler);
 
-    // Send heartbeat every 30s to keep connection alive
+    // Send heartbeat every 15s to keep connection alive through proxies
     const heartbeat = setInterval(() => {
       reply.raw.write(`: heartbeat\n\n`);
-    }, 30000);
+    }, 15000);
 
     // Send initial connected event
     sendEvent('connected', { timestamp: new Date().toISOString() });
@@ -36,8 +40,5 @@ export const eventsRoutes: FastifyPluginAsync = async (app) => {
       clearInterval(heartbeat);
       app.downloadManager.off('event', handler);
     });
-
-    // Don't end the response — SSE stays open
-    await new Promise(() => {});
   });
 };
